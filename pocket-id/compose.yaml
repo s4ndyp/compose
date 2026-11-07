@@ -26,8 +26,10 @@ services:
     environment:
       # verplicht: openssl rand -base64 32  (via Infisical-map /pocket-id)
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Zet ENCRYPTION_KEY in Infisical map /pocket-id of Dockhand Environment}
-      # verplicht in LAN-use: adres waarop de browser de app bereikt, bijv. http://10.5.0.162
-      APP_URL: ${APP_URL:?Zet APP_URL als stack-variabele, bijv. http://<lxc-ip>}
+      # verplicht in LAN-use: adres waarop de browser de app bereikt. LET OP: WebAuthn/passkeys
+      # vereisen een domeinnaam — een IP-adres wordt door de app afgewezen (RPID-check).
+      # Dus: APP_URL=http://pocket-id.<jouw-lan-domein>, via AdGuard-DNS-rewrite naar dit LXC-IP.
+      APP_URL: ${APP_URL:?Zet APP_URL als stack-variabele met een DOMEIN (geen IP), bijv. http://pocket-id.home.arpa}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
