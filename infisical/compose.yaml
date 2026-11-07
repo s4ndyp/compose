@@ -6,6 +6,9 @@
 #
 # Start:  cp .env.example .env  (vul eigen geheime waarden in!)
 #         docker compose up -d
+# Via Dockhand: de benodigde variabelen horen in Stack → Environment (de raw .env
+# die Dockhand naast de compose zet); env_file: .env leest die automatisch.
+# Zonder .env faalt de deploy met "env file ... not found".
 # Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 #
 # VEREIST .env: ENCRYPTION_KEY en AUTH_SECRET genereren bijv. met:
