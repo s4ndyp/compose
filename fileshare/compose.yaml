@@ -1,0 +1,23 @@
+# fileshare — FileShare — Node.js-bestandsdeling
+#
+# Geen publieke image; bouwt rechtstreeks vanaf GitHub (BuildKit git-context).
+
+# Start:  docker compose up -d
+services:
+  fileshare:
+    build:
+      context: https://github.com/s4ndyp/fileshare.git#main
+    image: fileshare:latest
+    container_name: fileshare
+    restart: unless-stopped
+    ports:
+      - "${FILESHARE_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      DATA_DIR: /data
+      MAX_FILE_SIZE: "${MAX_FILE_SIZE:-536870912}"   # bytes, default 512MB
+    volumes:
+      - fileshare_data:/data
+
+volumes:
+  fileshare_data:

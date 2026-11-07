@@ -1,0 +1,22 @@
+# filehog — FileHog — bestandsopslag (PocketBase)
+#
+# Start:  docker compose up -d
+services:
+  filehog:
+    image: ghcr.io/s4ndyp/filehog:latest
+    pull_policy: always
+    container_name: filehog
+    restart: unless-stopped
+    ports:
+      - "${FILEHOG_PORT:-8080}:8080"
+    volumes:
+      - filehog_data:/pb/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  filehog_data:

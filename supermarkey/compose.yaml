@@ -1,0 +1,11 @@
+# supermarkey — SuperMarkey — boodschappen-app (nginx static + PWA)
+#
+# Start:  docker compose up -d
+services:
+  app:
+    image: ghcr.io/s4ndyp/supermarkey:latest
+    pull_policy: always
+    container_name: supermarkey
+    restart: unless-stopped
+    ports:
+      - "${SUPERMARKEY_PORT:-7107}:80"

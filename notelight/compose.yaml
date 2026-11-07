@@ -1,0 +1,16 @@
+# notelight — NoteLight — notities (PocketBase)
+#
+# Start:  docker compose up -d
+services:
+  notelight:
+    image: ghcr.io/s4ndyp/notelight:latest
+    pull_policy: always
+    container_name: notelight
+    restart: unless-stopped
+    ports:
+      - "${NOTELIGHT_PORT:-8084}:8080"
+    volumes:
+      - notelight_data:/pb/pb_data
+
+volumes:
+  notelight_data:

@@ -1,0 +1,12 @@
+# ipey — iPEY — IP-apparaatbeheer (Node backend + nginx frontend, één container)
+#
+# Start:  docker compose up -d
+services:
+  ipey:
+    image: ghcr.io/s4ndyp/ipey:latest
+    pull_policy: always
+    container_name: ipey
+    restart: unless-stopped
+    ports:
+      - "${IPEY_PORT:-80}:80"
+    # nginx proxyt /api/ naar de interne Node-backend (3000); geen extra poort nodig.

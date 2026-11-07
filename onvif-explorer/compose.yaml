@@ -1,0 +1,31 @@
+# onvif-explorer — OnvifExplorer — camera-ontdekking (app + go2rtc voor streampreview)
+#
+# Start:  docker compose up -d
+services:
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    restart: unless-stopped
+    ports:
+      - "${GO2RTC_PORT:-1984}:1984"
+    volumes:
+      - go2rtc-config:/config
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/s4ndyp/onvif-explorer:latest}
+    pull_policy: always
+    container_name: onvif-explorer
+    restart: unless-stopped
+    depends_on:
+      - go2rtc
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      GO2RTC_INTERNAL_URL: http://go2rtc:1984
+      # URL zoals de BROWSER de go2rtc bereikt (LAN-IP van de host, niet localhost)
+      GO2RTC_PUBLIC_URL: ${GO2RTC_PUBLIC_URL:-http://localhost:1984}
+    # Voor WS-Discovery (multicast UDP 3702) op het LAN: network_mode: host
+    # (dan wiJst GO2RTC_PUBLIC_URL naar het host-IP).
+
+volumes:
+  go2rtc-config:

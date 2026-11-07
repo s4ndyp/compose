@@ -1,0 +1,16 @@
+# tracknote — TrackNote — tracker + notities (PocketBase + UI)
+#
+# Start:  docker compose up -d
+services:
+  app:
+    image: ghcr.io/s4ndyp/tracknote:latest
+    pull_policy: always
+    container_name: tracknote
+    restart: unless-stopped
+    ports:
+      - "${TRACKNOTE_PORT:-8095}:8090"
+    volumes:
+      - tracknote_data:/app/pb_data
+
+volumes:
+  tracknote_data:

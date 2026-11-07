@@ -1,0 +1,27 @@
+# dyncompare — DynCompare — vergelijker (PocketBase-app + sync-worker)
+#
+# Start:  docker compose up -d
+services:
+  app:
+    image: ghcr.io/s4ndyp/dyncompare:latest
+    container_name: dyncompare
+    restart: unless-stopped
+    ports:
+      - "${DYNCOMPARE_PORT:-8097}:8090"
+    volumes:
+      - dyncompare_data:/app/pb_data
+
+  sync:
+    image: ghcr.io/s4ndyp/dyncompare/sync:latest
+    container_name: dyncompare-sync
+    restart: unless-stopped
+    ports:
+      - "${DYNCOMPARE_SYNC_PORT:-8098}:8091"
+    environment:
+      POCKETBASE_URL: http://app:8090
+      TZ: Europe/Amsterdam
+    depends_on:
+      - app
+
+volumes:
+  dyncompare_data:

@@ -1,0 +1,45 @@
+# rtsp2onvif — RTSP2ONVIF — RTSP-naar-ONVIF-preview UI + go2rtc
+#
+# Geen image; UI bouwt met inline-Dockerfile vanaf GitHub, go2rtc-config inline.
+
+# Start:  docker compose up -d
+services:
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    restart: unless-stopped
+    ports:
+      - "${GO2RTC_PORT:-1984}:1984"   # API + web-UI
+      - "${GO2RTC_RTSP_PORT:-8554}:8554"   # uitgaande RTSP-streams
+      - "${GO2RTC_WEBRTC_PORT:-8555}:8555/udp" # WebRTC
+    configs:
+      - source: go2rtc_config
+        target: /config/go2rtc.yaml
+    # Webrtc kandidatene = publiek IP van deze host, aanpassen via env:
+    environment:
+      GO2RTC_WEBRTC_CANDIDATE: ${GO2RTC_CANDIDATE:-}
+
+  ui:
+    build:
+      context: https://github.com/s4ndyp/rtsp2onvif.git#main
+      dockerfile_inline: |
+        FROM nginx:alpine
+        COPY index.html /usr/share/nginx/html/index.html
+    image: rtsp2onvif-ui:latest
+    restart: unless-stopped
+    ports:
+      - "${RTSP2ONVIF_UI_PORT:-8088}:80"
+    depends_on:
+      - go2rtc
+
+configs:
+  go2rtc_config:
+    content: |
+      api:
+        listen: ":1984"
+        origin: "*"
+      rtsp:
+        listen: ":8554"
+      webrtc:
+        listen: ":8555"
+      log:
+        level: info

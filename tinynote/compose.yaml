@@ -1,0 +1,22 @@
+# tinynote — TinyNote — notities (PocketBase)
+#
+# Start:  docker compose up -d
+services:
+  tinynote:
+    image: ghcr.io/s4ndyp/tinynote:latest
+    pull_policy: always
+    container_name: tinynote
+    restart: unless-stopped
+    ports:
+      - "${TINYNOTE_PORT:-8080}:8080"
+    volumes:
+      - tinynote_data:/pb/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  tinynote_data:

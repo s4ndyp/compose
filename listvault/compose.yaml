@@ -1,0 +1,22 @@
+# listvault — ListVault — boodschappen/verzamellijst (PocketBase op poort 80)
+#
+# Start:  docker compose up -d
+services:
+  app:
+    image: ghcr.io/s4ndyp/listvault:latest
+    pull_policy: always
+    container_name: listvault
+    restart: unless-stopped
+    ports:
+      - "${LISTVAULT_PORT:-8099}:80"
+    volumes:
+      - listvault_data:/pb/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  listvault_data:

@@ -1,0 +1,17 @@
+# locator — Locator — locatie-app (PocketBase)
+#
+# Start:  docker compose up -d
+services:
+  locator:
+    image: ghcr.io/s4ndyp/locator:latest
+    pull_policy: always
+    container_name: locator
+    restart: unless-stopped
+    ports:
+      - "${LOCATOR_PORT:-8090}:8090"
+    # Alleen data persistent; pb_public en pb_migrations komen uit de image.
+    volumes:
+      - locator_data:/pb/pb_data
+
+volumes:
+  locator_data:

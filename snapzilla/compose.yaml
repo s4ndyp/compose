@@ -1,0 +1,64 @@
+# snapzilla — SnapZilla — foto-analyzer (PocketBase + web-UI + analyzer; geen publieke image → build vanaf GitHub)
+#
+# Start:  docker compose up -d
+services:
+  # Eénmalige init: clone repo zodat pb_migrations in een volume komt (image bestaat niet op GHCR).
+  repo-init:
+    image: alpine/git:latest
+    container_name: snapzilla-repo-init
+    restart: "no"
+    volumes:
+      - snapzilla_migrations:/out
+    command: >
+      sh -c "git clone --depth 1 https://github.com/s4ndyp/snapzilla.git /src
+      && cp -a /src/pocketbase/pb_migrations/. /out/"
+
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: snapzilla-pocketbase
+    restart: unless-stopped
+    depends_on:
+      repo-init:
+        condition: service_completed_successfully
+    environment:
+      PB_HOST: 0.0.0.0
+      PB_PORT: "8090"
+    volumes:
+      - pb_data:/pb_data
+      - snapzilla_migrations:/pb_migrations:ro
+    command:
+      ["serve", "--http=0.0.0.0:8090", "--dir=/pb_data",
+       "--migrationsDir=/pb_migrations", "--automigrate=true"]
+
+  web:
+    build:
+      context: https://github.com/s4ndyp/snapzilla.git#main:web
+    image: snapzilla-web:latest
+    container_name: snapzilla-web
+    restart: unless-stopped
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    ports:
+      - "${SNAPZILLA_PORT:-3000}:80"
+
+  analyzer:
+    build:
+      context: https://github.com/s4ndyp/snapzilla.git#main:analyzer
+    image: snapzilla-analyzer:latest
+    container_name: snapzilla-analyzer
+    restart: unless-stopped
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    environment:
+      POCKETBASE_URL: http://pocketbase:8090
+      POLL_INTERVAL_MS: "5000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemini-2.0-flash-001}
+      OPENROUTER_TIMEOUT_MS: "120000"
+      VISION_MAX_WIDTH: "1600"
+
+volumes:
+  pb_data:
+  snapzilla_migrations:

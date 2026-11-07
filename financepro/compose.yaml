@@ -1,0 +1,16 @@
+# financepro — FinancePro — huishoudboekje (PocketBase + UI)
+#
+# Start:  docker compose up -d
+services:
+  app:
+    image: ghcr.io/s4ndyp/financepro:latest
+    pull_policy: always
+    container_name: financepro
+    restart: unless-stopped
+    ports:
+      - "${FINANCEPRO_PORT:-7104}:8090"
+    volumes:
+      - financepro_data:/app/pb_data
+
+volumes:
+  financepro_data:

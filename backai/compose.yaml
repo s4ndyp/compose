@@ -1,0 +1,19 @@
+# backai — BackAI — AI-backupassistent (PocketBase + UI, GHCR-image)
+#
+# Start:  docker compose up -d
+services:
+  backai:
+    image: ${BACKAI_IMAGE:-ghcr.io/s4ndyp/backai:latest}
+    pull_policy: always
+    container_name: backai
+    restart: unless-stopped
+    ports:
+      - "${BACKAI_HTTP_PORT:-8090}:8090"
+    environment:
+      # Key waarmee agents zich kunnen registreren — VERANDEREN voor productie
+      BACKAI_AGENT_REGISTER_KEY: ${BACKAI_AGENT_REGISTER_KEY:-change-agent-register-key}
+    volumes:
+      - backai_data:/app/pb_data
+
+volumes:
+  backai_data:

@@ -1,0 +1,21 @@
+# webkey — WebKey — Python sitebouwer (poort 5050 app, 5051 preview)
+#
+# Start:  docker compose up -d
+services:
+  app:
+    image: ghcr.io/s4ndyp/webkey:beta
+    container_name: webkey
+    restart: unless-stopped
+    ports:
+      - "${WEBKEY_PORT:-5050}:5050"
+      - "${WEBKEY_PREVIEW_PORT:-5051}:5051"
+    # Cruciaal: staging (preview), public (live site) en backups persistent houden.
+    volumes:
+      - webkey_staging:/app/site_staging
+      - webkey_public:/app/site_public
+      - webkey_backups:/app/site_backups
+
+volumes:
+  webkey_staging:
+  webkey_public:
+  webkey_backups:

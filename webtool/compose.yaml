@@ -1,0 +1,20 @@
+# webtool — WebTool — web-appbouwer (Node + PocketBase in één)
+#
+# Start:  docker compose up -d
+services:
+  webtool:
+    image: ghcr.io/s4ndyp/webtool:latest
+    pull_policy: always
+    container_name: webtool
+    restart: unless-stopped
+    ports:
+      - "${WEBTOOL_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      POCKETBASE_URL: "http://127.0.0.1:8090"
+      PB_DATA_DIR: /data/pb
+    volumes:
+      - webtool_data:/data
+
+volumes:
+  webtool_data:

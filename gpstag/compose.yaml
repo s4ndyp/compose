@@ -1,0 +1,19 @@
+# gpstag — GPSTag — GPS-tracker (PocketBase + hooks)
+#
+# Start:  docker compose up -d
+services:
+  gpstag:
+    image: ghcr.io/s4ndyp/gpstag:latest
+    pull_policy: always
+    container_name: gpstag
+    restart: unless-stopped
+    ports:
+      - "${GPSTAG_PORT:-8090}:8090"
+    environment:
+      - TZ=Europe/Amsterdam
+    # pb_public/pb_hooks/pb_migrations zitten in de image; alleen data persistent.
+    volumes:
+      - gpstag_data:/pb/pb_data
+
+volumes:
+  gpstag_data:
