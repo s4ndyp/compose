@@ -1,6 +1,7 @@
 # financepro — FinancePro — huishoudboekje (PocketBase + UI)
 #
 # Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 services:
   app:
     image: ghcr.io/s4ndyp/financepro:latest
@@ -8,7 +9,7 @@ services:
     container_name: financepro
     restart: unless-stopped
     ports:
-      - "${FINANCEPRO_PORT:-7104}:8090"
+      - "${FINANCEPRO_PORT:-80}:8090"
     volumes:
       - financepro_data:/app/pb_data
 

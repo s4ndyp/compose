@@ -8,6 +8,7 @@ services:
     container_name: wasmme-admin
     restart: unless-stopped
     ports:
+      # publieke sites nemen poort 80 in; admin-UI draait daarom op 8080
       - "${WASMME_ADMIN_PORT:-8080}:8080"
     environment:
       PORT: "8080"

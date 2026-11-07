@@ -1,6 +1,7 @@
 # backai — BackAI — AI-backupassistent (PocketBase + UI, GHCR-image)
 #
 # Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 services:
   backai:
     image: ${BACKAI_IMAGE:-ghcr.io/s4ndyp/backai:latest}
@@ -8,7 +9,7 @@ services:
     container_name: backai
     restart: unless-stopped
     ports:
-      - "${BACKAI_HTTP_PORT:-8090}:8090"
+      - "${BACKAI_HTTP_PORT:-80}:8090"
     environment:
       # Key waarmee agents zich kunnen registreren — VERANDEREN voor productie
       BACKAI_AGENT_REGISTER_KEY: ${BACKAI_AGENT_REGISTER_KEY:-change-agent-register-key}

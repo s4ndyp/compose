@@ -3,35 +3,46 @@
 Elke submap bevat een `compose.yaml` met de benodigde gegevens om die app te draaien.
 Starten: `cd <repo-naam> && docker compose up -d` (of via Dockhand als stack-plak).
 
-De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`;
-host-poorten zijn te overschrijven via env-var (zie het bestand).
+**Deploy-model:** elke app draait op een eigen LXC. De browser-toegang is daarom
+altijd **host-poort 80**; de container-interne poort blijft zoals de app zelf luistert.
+De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
-| Map | App | Poort (host) | Gegevens |
+De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`.
+
+| Map | App | Host → intern | Gegevens |
 |---|---|---|---|
-| assetvault | AssetVault (PocketBase) | `ASSETVAULT_PORT` 8090 | image, volume |
-| backai | BackAI (PocketBase + UI) | `BACKAI_HTTP_PORT` 8090 | env `BACKAI_AGENT_REGISTER_KEY` |
-| dyncompare | DynCompare (app + sync) | 8097 / 8098 | image x2, volume |
-| filehog | FileHog (PocketBase) | `FILEHOG_PORT` 8080 | image, volume |
-| fileshare | FileShare (Node) | `FILESHARE_PORT` 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
-| financepro | FinancePro (PocketBase) | `FINANCEPRO_PORT` 7104 | image, volume |
-| gpstag | GPSTag (PocketBase + hooks) | `GPSTAG_PORT` 8090 | image, volume |
-| iconator | Iconator (PocketBase) | `ICONATOR_PORT` 8080 | image, volume |
-| ipey | iPEY (Node + nginx) | `IPEY_PORT` 80 | image |
-| listvault | ListVault (PocketBase) | `LISTVAULT_PORT` 8099 | image, volume |
-| locator | Locator (PocketBase) | `LOCATOR_PORT` 8090 | image, volume |
-| notelight | NoteLight (PocketBase) | `NOTELIGHT_PORT` 8084 | image, volume |
-| onvif-explorer | OnvifExplorer + go2rtc | 8080 / `GO2RTC_PORT` 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
-| quicknote | QuickNote capture-proxy | `CAPTURE_PORT` 8080 | image, env `IGNIS_UPSTREAM` |
-| rclone_ui | Rclone UI (manager + rclone) | 8080 / 5572 | image x2, fuse/privileged, volumes |
-| rtsp2onvif | RTSP→ONVIF UI + go2rtc | 8088 / 1984 / 8554 / 8555 | go2rtc-image + inline-build UI, inline config |
-| snapzilla | SnapZilla (PB + web + analyzer) | `SNAPZILLA_PORT` 3000 | build vanaf GitHub, env `OPENROUTER_API_KEY` |
-| supermarkey | SuperMarkey (nginx PWA) | `SUPERMARKEY_PORT` 7107 | image |
-| sync-ms | Sync-MS (PocketBase + collector) | `SYNCMS_HTTP_PORT` 8096 | image, volume, interval/retention |
-| tinynote | TinyNote (PocketBase) | `TINYNOTE_PORT` 8080 | image, volume |
-| tracknote | TrackNote (PocketBase + UI) | `TRACKNOTE_PORT` 8095 | image, volume |
-| wasmme | WasmMe (admin + publiek) | 8080 / 80 | image x2, gedeeld volume |
-| webkey | WebKey sitebouwer (Python) | 5050 / 5051 | image `:beta`, 3 volumes |
-| webtool | WebTool (Node + PocketBase) | `WEBTOOL_PORT` 3000 | image, volume |
+| assetvault | AssetVault (PocketBase) | 80 → 8090 | image, volume |
+| backai | BackAI (PocketBase + UI) | 80 → 8090 | env `BACKAI_AGENT_REGISTER_KEY` |
+| dyncompare | DynCompare (app + sync) | 80 → 8090; sync 8098 → 8091 | image x2, volume |
+| filehog | FileHog (PocketBase) | 80 → 8080 | image, volume |
+| fileshare | FileShare (Node) | 80 → 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
+| financepro | FinancePro (PocketBase) | 80 → 8090 | image, volume |
+| gpstag | GPSTag (PocketBase + hooks) | 80 → 8090 | image, volume |
+| iconator | Iconator (PocketBase) | 80 → 8080 | image, volume |
+| ipey | iPEY (Node + nginx) | 80 → 80 | image |
+| listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
+| locator | Locator (PocketBase) | 80 → 8090 | image, volume |
+| notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
+| onvif-explorer | OnvifExplorer + go2rtc | 80 → 8080; go2rtc 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
+| quicknote | QuickNote capture-proxy | 80 → 80 | image, env `IGNIS_UPSTREAM` |
+| rclone_ui | Rclone UI (manager + rclone) | 80 → 8080 | image x2, fuse/privileged, volumes; rclone-rc alleen intern |
+| rtsp2onvif | RTSP→ONVIF UI + go2rtc | 80 → 80 (UI); go2rtc 1984/8554/8555 | go2rtc-image + inline-build UI, inline config |
+| snapzilla | SnapZilla (PB + web + analyzer) | 80 → 80 (web) | build vanaf GitHub, env `OPENROUTER_API_KEY`; PB/analyzer intern |
+| supermarkey | SuperMarkey (nginx PWA) | 80 → 80 | image |
+| sync-ms | Sync-MS (PocketBase + collector) | 80 → 8090 | image, volume, interval/retention |
+| tinynote | TinyNote (PocketBase) | 80 → 8080 | image, volume |
+| tracknote | TrackNote (PocketBase + UI) | 80 → 8090 | image, volume |
+| wasmme | WasmMe (admin + publiek) | 80 → 80 (publiek); admin 8080 | image x2, gedeeld volume |
+| webkey | WebKey sitebouwer (Python) | 80 → 5050; preview 5051 | image `:beta`, 3 volumes |
+| webtool | WebTool (Node + PocketBase) | 80 → 3000 | image, volume |
+
+## Diensten die níét op 80 kunnen (binnen één stack)
+
+Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
+dyncompare `sync` (8098, peer-endpoint), onvif-explorer/rtsp2onvif `go2rtc` (1984 en
+stream-poorten), wasmme `admin` (8080), webkey `preview` (5051). Snapzilla's PocketBase
+en analyzer zijn alleen intern bereikbaar — de web-nginx proxyt `/api/` en `/_/` naar
+PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
 
 ## Overgeslagen repo's (geen draaibare server-app)
 
@@ -44,10 +55,8 @@ host-poorten zijn te overschrijven via env-var (zie het bestand).
 
 ## Opmerkingen
 
-- **Portcollisie**: veel apps luisteren standaard op dezelfde poort (8080/8090). Op één
-  host tegelijk draaien? Overschrijf de host-poort via de env-var van die stack.
 - **snapzilla**: geen publieke GHCR-image; web/analyzer worden vanaf GitHub gebouwd en
   `pb_migrations` komen via een eenmalige `repo-init`-container in een volume.
   Zet `OPENROUTER_API_KEY` in `.env` om AI-analyse werkend te krijgen.
 - **fileshare / rtsp2onvif**: bouwen eveneens vanaf GitHub (BuildKit git-context).
-- PocketBase-apps: eerste login via `/_/` admin-aanmaken op de gemapte poort.
+- PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.

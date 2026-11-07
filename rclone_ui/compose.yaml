@@ -1,14 +1,17 @@
 # rclone_ui — Rclone UI — rclone-webbeheer (manager + rclone-rc daemon)
 #
 # Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 services:
   rclone:
     image: rclone/rclone:latest
     container_name: rclone
     restart: unless-stopped
     command: rcd --rc-addr :5572 --rc-no-auth --rc-allow-origin "*"
-    ports:
-      - "${RCLONE_RC_PORT:-5572}:5572"
+    # rc-API intern bereikbaar voor de manager via http://rclone:5572.
+    # Alleen exposeren als andere host-tools de rc-API nodig hebben:
+    # ports:
+    #   - "${RCLONE_RC_PORT:-5572}:5572"
     volumes:
       - rclone_config:/config/rclone
       - rclone_data:/data
@@ -24,7 +27,7 @@ services:
     container_name: rclone-manager
     restart: unless-stopped
     ports:
-      - "${RCLONE_UI_PORT:-8080}:8080"
+      - "${RCLONE_UI_PORT:-80}:8080"
     environment:
       - RCLONE_RC_URL=http://rclone:5572
       - JOBS_FILE=/data/jobs.json

@@ -3,13 +3,14 @@
 # Geen image; UI bouwt met inline-Dockerfile vanaf GitHub, go2rtc-config inline.
 
 # Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 services:
   go2rtc:
     image: alexxit/go2rtc:latest
     restart: unless-stopped
     ports:
-      - "${GO2RTC_PORT:-1984}:1984"   # API + web-UI
-      - "${GO2RTC_RTSP_PORT:-8554}:8554"   # uitgaande RTSP-streams
+      - "${GO2RTC_PORT:-1984}:1984"   # UI-service neemt poort 80; go2rtc blijft 1984 (speler-API)
+      - "${GO2RTC_RTSP_PORT:-8554}:8554"   # geen browserpoort: uitgaande RTSP-streams
       - "${GO2RTC_WEBRTC_PORT:-8555}:8555/udp" # WebRTC
     configs:
       - source: go2rtc_config
@@ -27,7 +28,7 @@ services:
     image: rtsp2onvif-ui:latest
     restart: unless-stopped
     ports:
-      - "${RTSP2ONVIF_UI_PORT:-8088}:80"
+      - "${RTSP2ONVIF_UI_PORT:-80}:80"
     depends_on:
       - go2rtc
 

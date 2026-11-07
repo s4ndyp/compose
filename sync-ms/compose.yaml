@@ -1,6 +1,7 @@
 # sync-ms — Sync-MS — monitoring-sync (PocketBase + collector)
 #
 # Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 services:
   sync-ms:
     image: ${SYNCMS_IMAGE:-ghcr.io/s4ndyp/sync-ms:latest}
@@ -8,7 +9,7 @@ services:
     container_name: sync-ms
     restart: unless-stopped
     ports:
-      - "${SYNCMS_HTTP_PORT:-8096}:8090"
+      - "${SYNCMS_HTTP_PORT:-80}:8090"
     environment:
       SYNCMS_SAMPLE_INTERVAL_SEC: ${SYNCMS_SAMPLE_INTERVAL_SEC:-60}
       SYNCMS_RETENTION_DAYS: ${SYNCMS_RETENTION_DAYS:-45}

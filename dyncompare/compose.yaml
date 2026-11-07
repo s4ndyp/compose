@@ -1,13 +1,14 @@
 # dyncompare — DynCompare — vergelijker (PocketBase-app + sync-worker)
 #
 # Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 services:
   app:
     image: ghcr.io/s4ndyp/dyncompare:latest
     container_name: dyncompare
     restart: unless-stopped
     ports:
-      - "${DYNCOMPARE_PORT:-8097}:8090"
+      - "${DYNCOMPARE_PORT:-80}:8090"
     volumes:
       - dyncompare_data:/app/pb_data
 
@@ -16,7 +17,7 @@ services:
     container_name: dyncompare-sync
     restart: unless-stopped
     ports:
-      - "${DYNCOMPARE_SYNC_PORT:-8098}:8091"
+      - "${DYNCOMPARE_SYNC_PORT:-8098}:8091"   # app neemt 80 in; sync is geen browser-UI maar peer-endpoint voor andere instanties
     environment:
       POCKETBASE_URL: http://app:8090
       TZ: Europe/Amsterdam
