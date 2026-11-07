@@ -30,6 +30,8 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | rtsp2onvif | RTSP→ONVIF UI + go2rtc | 80 → 80 (UI); go2rtc 1984/8554/8555 | go2rtc-image + inline-build UI, inline config |
 | snapzilla | SnapZilla (PB + web + analyzer) | 80 → 80 (web) | build vanaf GitHub, env `OPENROUTER_API_KEY`; PB/analyzer intern |
 | supermarkey | SuperMarkey (nginx PWA) | 80 → 80 | image |
+| dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
+| uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
 | sync-ms | Sync-MS (PocketBase + collector) | 80 → 8090 | image, volume, interval/retention |
 | tinynote | TinyNote (PocketBase) | 80 → 8080 | image, volume |
 | tracknote | TrackNote (PocketBase + UI) | 80 → 8090 | image, volume |
@@ -60,7 +62,10 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   `pb_migrations` komen via een eenmalige `repo-init`-container in een volume.
   Zet `OPENROUTER_API_KEY` in `.env` om AI-analyse werkend te krijgen.
 - **fileshare / rtsp2onvif**: bouwen eveneens vanaf GitHub (BuildKit git-context).
-- **infisical**: de enige externe (niet-s4ndyp) app in dit repo. Doe `cp .env.example .env`
+- **infisical**: externe (niet-s4ndyp) app; ook dashbrr en uptime-kotlin zijn extern. Doe `cp .env.example .env`
   op de host, gegenereer eigen `ENCRYPTION_KEY`/`AUTH_SECRET` en bewaar `ENCRYPTION_KEY`
   offline — zonder die sleutel is een `pg_data`-backup onleesbaar. Minimaal 4 GB RAM aanbevolen.
+- **uptime-kotlin**: externe uptime-monitor (één Quarkus-image + Postgres). Vereist eigen
+  `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
+  de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
