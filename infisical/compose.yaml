@@ -1,0 +1,69 @@
+# infisical — Infisical self-hosted secrets-manager (backend + PostgreSQL + Redis)
+#
+# Bron: officiële docker-compose.prod.yml van github.com/Infisical/infisical,
+# aangepast aan de afspraken in dit repo (browser op host-poort 80, interne poort 8080).
+# Image PIN op versie-tag zoals Infisical zelf aanbeveelt — upgrade door het tagnummer te verzetten.
+#
+# Start:  cp .env.example .env  (vul eigen geheime waarden in!)
+#         docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
+#
+# VEREIST .env: ENCRYPTION_KEY en AUTH_SECRET genereren bijv. met:
+#   openssl rand -hex 16     # ENCRYPTION_KEY
+#   openssl rand -base64 32  # AUTH_SECRET
+# Zonder eigen ENCRYPTION_KEY zijn alle secrets met een gekende samplesleutel
+# versleuteld. Bewaar ENCRYPTION_KEY offline — zonder deze sleutel is een
+# pg_data-backup onleesbaar.
+#
+# LXC-afmeting: Infisical adviseert min. 2 CPU / 4 GB RAM / 20 GB disk
+# (backend + postgres + redis samen).
+#
+# Eerste gebruiker die zich registrereert wordt instance-admin — doe dit vóór
+# de app bereikbaar maken voor anderen.
+
+services:
+  backend:
+    image: infisical/infisical:v0.167.6   # PIN op versie (zie upgrade-opmerking)
+    pull_policy: always
+    container_name: infisical
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+    ports:
+      # browser-UI + API: host 80, intern luistert Infisical op 8080
+      - "${INFISICAL_PORT:-80}:8080"
+
+  redis:
+    image: redis:7-alpine
+    container_name: infisical-redis
+    restart: unless-stopped
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    # Alleen intern (container-netwerk); géén host-poort exposen.
+    volumes:
+      - infisical_redis_data:/data
+
+  db:
+    image: postgres:14-alpine
+    container_name: infisical-db
+    restart: unless-stopped
+    env_file: .env
+    # Alleen intern (container-netwerk); géén host-poort exposen.
+    # Let op: pg_data bevat álle versleutelde secrets — nooit zonder backup verwijderen.
+    volumes:
+      - infisical_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: "pg_isready --username=${POSTGRES_USER} && psql --username=${POSTGRES_USER} --list"
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  infisical_pg_data:
+  infisical_redis_data:

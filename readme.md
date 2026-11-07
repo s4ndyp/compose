@@ -20,6 +20,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | gpstag | GPSTag (PocketBase + hooks) | 80 → 8090 | image, volume |
 | iconator | Iconator (PocketBase) | 80 → 8080 | image, volume |
 | ipey | iPEY (Node + nginx) | 80 → 80 | image |
+| infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
 | locator | Locator (PocketBase) | 80 → 8090 | image, volume |
 | notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
@@ -59,4 +60,7 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   `pb_migrations` komen via een eenmalige `repo-init`-container in een volume.
   Zet `OPENROUTER_API_KEY` in `.env` om AI-analyse werkend te krijgen.
 - **fileshare / rtsp2onvif**: bouwen eveneens vanaf GitHub (BuildKit git-context).
+- **infisical**: de enige externe (niet-s4ndyp) app in dit repo. Doe `cp .env.example .env`
+  op de host, gegenereer eigen `ENCRYPTION_KEY`/`AUTH_SECRET` en bewaar `ENCRYPTION_KEY`
+  offline — zonder die sleutel is een `pg_data`-backup onleesbaar. Minimaal 4 GB RAM aanbevolen.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
