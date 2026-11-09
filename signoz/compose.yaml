@@ -230,7 +230,7 @@ services:
       - |
         set -e
         test -n "$$PVE_TOKEN_VALUE" || { echo "PVE_TOKEN_VALUE ontbreekt"; exit 1; }
-        { echo 'default:'; echo '  host: 10.1.1.10'; echo '  user: pve-metrics@pve';
+        { echo 'default:'; echo '  user: pve-metrics@pve';
           echo '  token_name: metrics'; echo "  token_value: $$PVE_TOKEN_VALUE"; echo '  verify_ssl: false'; } > /etc/pveconf/pve.yml
         echo "pve.yml geschreven"
     volumes:
