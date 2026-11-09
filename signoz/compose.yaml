@@ -230,7 +230,8 @@ services:
       - |
         set -e
         test -n "$$PVE_TOKEN_VALUE" || { echo "PVE_TOKEN_VALUE ontbreekt"; exit 1; }
-        printf 'default:\n  host: 10.1.1.10\n  user: root@pam\n  token_name: Hermes\n  token_value: %s\n  verify_ssl: false\n' "$$PVE_TOKEN_VALUE" > /etc/pveconf/pve.yml
+        { echo 'default:'; echo '  host: 10.1.1.10'; echo '  user: pve-metrics@pve';
+          echo '  token_name: metrics'; echo "  token_value: $$PVE_TOKEN_VALUE"; echo '  verify_ssl: false'; } > /etc/pveconf/pve.yml
         echo "pve.yml geschreven"
     volumes:
       - signoz-pve-conf:/etc/pveconf
