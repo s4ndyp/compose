@@ -24,7 +24,10 @@ services:
       #- DASHBRR__OIDC_CLIENT_SECRET=optional
       #- DASHBRR__OIDC_REDIRECT_URL=required-with-oidc
     volumes:
-      - ./data:/data
+      # Named volume i.p.v. ./data: relatieve binds bestaan niet op de externe
+      # docker-daemon (Dockhand draait compose op z'n eigen host, de daemon op deze
+      # LXC interpreteert het pad en maakt een spookmap). Zie ook snapzilla/signoz.
+      - dashbrr_data:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,6 +58,8 @@ services:
 volumes:
   postgres_data:
     name: dashbrr_postgres_data
+  dashbrr_data:
+    name: dashbrr_data
 
 networks:
   dashbrr-network:
