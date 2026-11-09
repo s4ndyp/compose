@@ -61,6 +61,12 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
 
 ## Opmerkingen
 
+- **Audit nov 2026 (valkuilen externe daemon):** alle stacks gecontroleerd op file-binds, `service_healthy`
+  zonder healthcheck, shell-command-interpretatie en `$`-interpolatie. Enige treffer: dashbrr `./data` →
+  omgezet naar named volume `dashbrr_data` (sessions.json gemigreerd). fileshare en rtsp2onvif bevatten
+  `build:`-services maar zijn níét als Dockhand-git-stack gedeployed — bij een latere Dockhand-deploy daar
+  `buildOnDeploy: true` zetten, anders faalt de pull op de lokale buildnamen.
+
 - **snapzilla**: geen publieke GHCR-image; web/analyzer worden vanaf GitHub gebouwd en
   `pb_migrations` komen via een eenmalige `repo-init`-container in een volume.
   Zet `OPENROUTER_API_KEY` in `.env` om AI-analyse werkend te krijgen.
