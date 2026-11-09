@@ -25,6 +25,14 @@ services:
     depends_on:
       repo-init:
         condition: service_completed_successfully
+    # web/analyzer hangen af van service_healthy — de pocketbase-image heeft zelf geen
+    # healthcheck, die moet dus hier gedefinieerd worden, anders faalt de hele deploy.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     environment:
       PB_HOST: 0.0.0.0
       PB_PORT: "8090"
