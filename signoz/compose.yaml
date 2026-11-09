@@ -1,33 +1,64 @@
 # SigNoz — self-hosted observability (OpenTelemetry traces/metrics/logs).
 # Externe app: gegenereerd door SigNoz Foundry (foundryctl forge, casting
 # flavor=compose/mode=docker) en aangepast aan de stackregels van deze repo.
-# Upstream distributes geen compose-bestanden meer sinds v0.130.0; Foundry is de
-# ondersteerde route. Versies hierarchy-pinnen: signoz/signoz v0.149.0,
-# signoz-otel-collector v0.144.15, clickhouse 25.12.5, postgres 16.
+# Upstream distributeert geen compose-bestanden meer sinds v0.130.0; Foundry is de
+# ondersteunde route. Images gepind: signoz/signoz v0.149.0,
+# signoz/signoz-otel-collector v0.144.15, clickhouse 25.12.5, postgres 16.
 # Upgraden: nieuwe tags op Docker Hub (signoz/signoz, signoz/signoz-otel-collector)
 # en/of de Foundry-docs (https://signoz.io/docs/install/docker/) volgen.
 #
-# Browser-route is ALTIJD host-poort 80 op het LXC-IP (Signoz UI, intern 8080).
+# Browser-route is ALTIJD host-poort 80 op het LXC (Signoz UI, intern 8080).
 # De OTel-collector is geen browser-dienst: OTLP-inname houdt eigen poorten
 # 4317 (gRPC) en 4318 (HTTP) — andere hosts op het netwerk sturen daar telemetry.
 # ClickHouse, Postgres en Keeper hebben géén host-poort: die blijven alleen
 # bereikbaar binnen het docker-netwerk. Het Postgres-wachtwoord is de
 # Foundry-standaard ('signoz'); de DB is vanaf buiten niet bereikbaar.
+#
+# BELANGRIJK (afwijking van Foundry-origin): de config-bestanden (ingester.yaml,
+# opamp.yaml, keeper-0.yaml, config-0-0.yaml, functions.yaml) worden NIET als
+# bestands-bind gemount. Deze stack draait via Dockhand op een EXTERNE
+# docker-daemon (eigen LXC): relatieve ./paden existeerren daar niet en docker
+# maakt er lege mappen van (keeper crasht dan met segfault/exit 139). In plaats
+# daarvan downloadt de eenmalige 'signoz-repo-init'-container de vijf files uit
+# deze repo (main) in de named volume 'signoz-config', en elk programma leest
+# ze read-only uit /etc/signoz. Zie ook snapzilla: zelfde repo-init-patroon.
 name: signoz
 networks:
   signoz-network:
     name: signoz-network
 services:
+  signoz-repo-init:
+    container_name: signoz-repo-init
+    image: alpine:3.22
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        BASE=https://raw.githubusercontent.com/s4ndyp/compose/main/signoz
+        wget -q -O /conf/ingester.yaml          "$BASE/ingester/ingester.yaml"
+        wget -q -O /conf/opamp.yaml             "$BASE/ingester/opamp.yaml"
+        wget -q -O /conf/keeper-0.yaml          "$BASE/telemetrykeeper/clickhousekeeper/keeper-0.yaml"
+        wget -q -O /conf/config-0-0.yaml       "$BASE/telemetrystore/clickhouse/config-0-0.yaml"
+        wget -q -O /conf/functions.yaml         "$BASE/telemetrystore/clickhouse/functions.yaml"
+        grep -q . /conf/ingester.yaml /conf/opamp.yaml /conf/keeper-0.yaml /conf/config-0-0.yaml /conf/functions.yaml
+        echo "signoz config-initialisatie klaar"
+    restart: "no"
+    volumes:
+      - signoz-config:/conf
   ingester:
     command:
       - -c
       - |
         /signoz-otel-collector migrate sync check &&
-        /signoz-otel-collector --config=/etc/otel-collector-config.yaml --manager-config=/etc/opamp-config.yaml --copy-path=/var/tmp/collector-config.yaml
+        /signoz-otel-collector --config=/etc/signoz/ingester.yaml --manager-config=/etc/signoz/opamp.yaml --copy-path=/var/tmp/collector-config.yaml
     deploy:
       replicas: 1
     entrypoint:
       - /bin/sh
+    depends_on:
+      signoz-repo-init:
+        condition: service_completed_successfully
     environment:
       - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://signoz-telemetrystore-clickhouse-0-0:9000
       - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
@@ -41,8 +72,7 @@ services:
       - "4318:4318" # OTLP HTTP-ontvanger (niet-browser, eigen poort)
     restart: unless-stopped
     volumes:
-      - ./ingester/ingester.yaml:/etc/otel-collector-config.yaml:ro
-      - ./ingester/opamp.yaml:/etc/opamp-config.yaml:ro
+      - signoz-config:/etc/signoz:ro
   signoz-metastore-postgres-0:
     container_name: signoz-metastore-postgres-0
     environment:
@@ -89,9 +119,12 @@ services:
     restart: unless-stopped
   signoz-telemetrykeeper-clickhousekeeper-0:
     container_name: signoz-telemetrykeeper-clickhousekeeper-0
+    depends_on:
+      signoz-repo-init:
+        condition: service_completed_successfully
     entrypoint:
       - /usr/bin/clickhouse-keeper
-      - --config-file=/etc/clickhouse-keeper/keeper.yaml
+      - --config-file=/etc/signoz/keeper-0.yaml
     healthcheck:
       interval: 30s
       retries: 3
@@ -112,17 +145,19 @@ services:
     restart: unless-stopped
     volumes:
       - signoz-telemetrykeeper-0-data:/var/lib/clickhouse-keeper
-      - ./telemetrykeeper/clickhousekeeper/keeper-0.yaml:/etc/clickhouse-keeper/keeper.yaml:ro
+      - signoz-config:/etc/signoz:ro
   signoz-telemetrystore-clickhouse-0-0:
     container_name: signoz-telemetrystore-clickhouse-0-0
     depends_on:
+      signoz-repo-init:
+        condition: service_completed_successfully
       signoz-telemetrykeeper-clickhousekeeper-0:
         condition: service_healthy
       signoz-telemetrystore-clickhouse-user-scripts:
         condition: service_completed_successfully
     environment:
       - CLICKHOUSE_SKIP_USER_SETUP=1
-      - CLICKHOUSE_CONFIG=/etc/clickhouse-server/config-0-0.yaml
+      - CLICKHOUSE_CONFIG=/etc/signoz/config-0-0.yaml
     healthcheck:
       interval: 30s
       retries: 3
@@ -141,8 +176,7 @@ services:
     volumes:
       - signoz-telemetrystore-0-0-data:/var/lib/clickhouse
       - signoz-telemetrystore-user-scripts:/var/lib/clickhouse/user_scripts:ro
-      - ./telemetrystore/clickhouse/config-0-0.yaml:/etc/clickhouse-server/config-0-0.yaml:ro
-      - ./telemetrystore/clickhouse/functions.yaml:/etc/clickhouse-server/functions.yaml:ro
+      - signoz-config:/etc/signoz:ro
   signoz-telemetrystore-clickhouse-user-scripts:
     command:
       - bash
@@ -182,6 +216,8 @@ services:
       - signoz-network
     restart: on-failure
 volumes:
+  signoz-config:
+    name: signoz-config
   signoz-metastore-postgres-0-data:
     name: signoz-metastore-postgres-0-data
   signoz-telemetrykeeper-0-data:
