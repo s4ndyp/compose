@@ -15,7 +15,8 @@ services:
       - snapzilla_migrations:/out
     command:
       - >-
-        git clone --depth 1 https://github.com/s4ndyp/snapzilla.git /src
+        rm -rf /src /out/*
+        && git clone --depth 1 https://github.com/s4ndyp/snapzilla.git /src
         && cp -a /src/pocketbase/pb_migrations/. /out/
 
   pocketbase:
