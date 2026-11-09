@@ -36,11 +36,11 @@ services:
       - |
         set -e
         BASE=https://raw.githubusercontent.com/s4ndyp/compose/main/signoz
-        wget -q -O /conf/ingester.yaml          "$BASE/ingester/ingester.yaml"
-        wget -q -O /conf/opamp.yaml             "$BASE/ingester/opamp.yaml"
-        wget -q -O /conf/keeper-0.yaml          "$BASE/telemetrykeeper/clickhousekeeper/keeper-0.yaml"
-        wget -q -O /conf/config-0-0.yaml       "$BASE/telemetrystore/clickhouse/config-0-0.yaml"
-        wget -q -O /conf/functions.yaml         "$BASE/telemetrystore/clickhouse/functions.yaml"
+        wget -q -O /conf/ingester.yaml          "$$BASE/ingester/ingester.yaml"
+        wget -q -O /conf/opamp.yaml             "$$BASE/ingester/opamp.yaml"
+        wget -q -O /conf/keeper-0.yaml          "$$BASE/telemetrykeeper/clickhousekeeper/keeper-0.yaml"
+        wget -q -O /conf/config-0-0.yaml       "$$BASE/telemetrystore/clickhouse/config-0-0.yaml"
+        wget -q -O /conf/functions.yaml         "$$BASE/telemetrystore/clickhouse/functions.yaml"
         grep -q . /conf/ingester.yaml /conf/opamp.yaml /conf/keeper-0.yaml /conf/config-0-0.yaml /conf/functions.yaml
         echo "signoz config-initialisatie klaar"
     restart: "no"
