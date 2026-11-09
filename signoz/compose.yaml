@@ -216,9 +216,42 @@ services:
     networks:
       - signoz-network
     restart: on-failure
+  signoz-pve-conf-init:
+    # Schrijft de pve-exporter-config (incl. API-token) in een volume — het token Geheim
+    # komt via de Dockhand-stackvariabelen (PVE_TOKEN_VALUE) en staat NOOIT in de git-repo.
+    container_name: signoz-pve-conf-init
+    image: alpine:3.22
+    restart: "no"
+    environment:
+      - PVE_TOKEN_VALUE=${PVE_TOKEN_VALUE:-}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        test -n "$$PVE_TOKEN_VALUE" || { echo "PVE_TOKEN_VALUE ontbreekt"; exit 1; }
+        printf 'default:\n  host: 10.1.1.10\n  user: root@pam\n  token_name: Hermes\n  token_value: %s\n  verify_ssl: false\n' "$$PVE_TOKEN_VALUE" > /etc/pveconf/pve.yml
+        echo "pve.yml geschreven"
+    volumes:
+      - signoz-pve-conf:/etc/pveconf
+  pve-exporter:
+    # Proxmox VE cluster-metrics (o.a. per-node storage/schijf: pve_storage_* bytes).
+    # Geen host-poort: alleen de OTel-collector scrapet hem intern op 9221.
+    container_name: signoz-pve-exporter
+    image: prompve/prometheus-pve-exporter:3.11.0
+    restart: unless-stopped
+    depends_on:
+      signoz-pve-conf-init:
+        condition: service_completed_successfully
+    volumes:
+      - signoz-pve-conf:/etc/prometheus:ro
+    networks:
+      - signoz-network
 volumes:
   signoz-config:
     name: signoz-config
+  signoz-pve-conf:
+    name: signoz-pve-conf
   signoz-metastore-postgres-0-data:
     name: signoz-metastore-postgres-0-data
   signoz-telemetrykeeper-0-data:

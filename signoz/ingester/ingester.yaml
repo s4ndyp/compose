@@ -118,6 +118,18 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+  prometheus:
+    config:
+      scrape_configs:
+      - job_name: pve
+        scrape_interval: 60s
+        metrics_path: /pve
+        params:
+          module: [default]
+        static_configs:
+        - targets: ['pve-exporter:9221']
+          labels:
+            cluster: proxlan
 service:
   extensions:
   - signoz_health_check
@@ -144,6 +156,7 @@ service:
       - batch
       receivers:
       - otlp
+      - prometheus
     metrics/meter:
       exporters:
       - signozclickhousemeter
