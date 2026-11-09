@@ -30,6 +30,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | rclone_ui | Rclone UI (manager + rclone) | 80 → 8080 | image x2, fuse/privileged, volumes; rclone-rc alleen intern |
 | rtsp2onvif | RTSP→ONVIF UI + go2rtc | 80 → 80 (UI); go2rtc 1984/8554/8555 | go2rtc-image + inline-build UI, inline config |
 | snapzilla | SnapZilla (PB + web + analyzer) | 80 → 80 (web) | build vanaf GitHub, env `OPENROUTER_API_KEY`; PB/analyzer intern |
+| signoz | SigNoz observability (extern; UI + OTel-ingester + ClickHouse + Keeper + Postgres) | 80 → 8080 (UI); OTLP 4317/4318 | images gepind (`signoz v0.149.0`, `otel-collector v0.144.15`, clickhouse 25.12.5, postgres 16), 4 volumes; db/keeper/clickhouse intern |
 | supermarkey | SuperMarkey (nginx PWA) | 80 → 80 | image |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
@@ -44,7 +45,8 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
 dyncompare `sync` (8098, peer-endpoint), onvif-explorer/rtsp2onvif `go2rtc` (1984 en
-stream-poorten), wasmme `admin` (8080), webkey `preview` (5051). Snapzilla's PocketBase
+stream-poorten), wasmme `admin` (8080), webkey `preview` (5051), signoz `ingester`
+(4317/4318, OTLP-inname voor telemetry van andere hosts). Snapzilla's PocketBase
 en analyzer zijn alleen intern bereikbaar — de web-nginx proxyt `/api/` en `/_/` naar
 PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
 
@@ -70,3 +72,9 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
+- **signoz**: externe (niet-s4ndyp) app. Upstream distributed geen losse compose meer
+  (deprecated sinds v0.130.0); deze stack is gegenereerd met `foundryctl forge`
+  (Foundry, flavor=compose) en handmatig gepind op de image-tags uit de tabel.
+  Upgrade via nieuwe Foundry-forge of tags rechtstreeks ophogen. Minimaal 8 GB RAM
+  op de LXC (ClickHouse + Postgres + Keeper + collector). Eerste login: open `http://<lxc-ip>/`
+  en registreer de instance-admin vóór eerste gebruik.
