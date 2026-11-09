@@ -62,6 +62,7 @@ services:
     environment:
       - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://signoz-telemetrystore-clickhouse-0-0:9000
       - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+      - LOW_CARDINAL_EXCEPTION_GROUPING=false
     image: signoz/signoz-otel-collector:v0.144.15
     networks:
       signoz-network:

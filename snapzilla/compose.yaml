@@ -3,16 +3,19 @@
 # Start:  docker compose up -d
 # Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
 services:
-  # Eénmalige init: clone repo zodat pb_migrations in een volume komt (image bestaat niet op GHCR).
+  # Eénmalige init: clone repo zodat pb_migrations in een volume komt (image bestaat niet publiek op GHCR).
+  # NB: alpine/git:latest heeft `git` als entrypoint — entrypoint dus overschrijven naar sh, anders
+  # ziet git 'sh' als commando en faalt de init (exit 1, hele stack blijft dan op 'created' hangen).
   repo-init:
     image: alpine/git:latest
     container_name: snapzilla-repo-init
     restart: "no"
+    entrypoint: ["sh", "-c"]
     volumes:
       - snapzilla_migrations:/out
     command: >
-      sh -c "git clone --depth 1 https://github.com/s4ndyp/snapzilla.git /src
-      && cp -a /src/pocketbase/pb_migrations/. /out/"
+      git clone --depth 1 https://github.com/s4ndyp/snapzilla.git /src
+      && cp -a /src/pocketbase/pb_migrations/. /out/
 
   pocketbase:
     image: ghcr.io/muchobien/pocketbase:latest
