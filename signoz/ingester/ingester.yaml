@@ -126,6 +126,7 @@ receivers:
         metrics_path: /pve
         params:
           module: [default]
+          target: ['10.1.1.10:8006']
         static_configs:
         - targets: ['pve-exporter:9221']
           labels:
