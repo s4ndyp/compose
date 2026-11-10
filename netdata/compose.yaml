@@ -5,9 +5,11 @@
 # Er is geen apart "parent-image": een parent is een gewone agent met een stream.conf
 # die inkomende streams accepteert. Deze stack doet precies dat.
 #
-# Poort: web-dashboard, API én de metrics-streaming delen dezelfde poort — intern 19999,
-# host 80 (${NETDATA_PORT:-80}). Child-agents streamen naar http://10.5.0.<vmid>:19999,
-# dus die poort moet vanaf de child-hosts bereikbaar blijven (niet dichtzetten).
+# Poort: web-dashboard, API én de metrics-streaming delen dezelfde poort — container-intern 19999.
+# Published: host 80 (${NETDATA_PORT:-80}, de browser-route) én host 19999 (de netdata-standaardpoort
+# waarop child-agents streamen). Zonder die tweede mapping bestaat er op het LXC-IP geen 19999 en
+# moeten child-hosts naar :80 streamen — dat werkt, maar 19999 is de intuitieve/gedocumenteerde
+# netdata-poort. Beide mappen naar container-19999; streaming is geen browser-dienst.
 #
 # Config: /etc/netdata is een named volume; de eenmalige container 'netdata-repo-init'
 # vult het met netdata.conf + stream.conf. Bestands-binds werken niet op een externe
@@ -62,7 +64,11 @@ services:
     cap_add:
       - SYS_PTRACE
     ports:
+      # browser-route (dashboard + API): host 80 → container 19999
       - "${NETDATA_PORT:-80}:19999"
+      # streaming-endpoint voor child-agents: de netdata-standaardpoort 19999 op het LXC-IP.
+      # Geen browser-dienst, dus een eigen host-poort naast de vaste 80 (één 80-mapping per stack).
+      - "19999:19999"
     environment:
       # geen Netdata Cloud-claim, geen anonieme telemetrie
       DISABLE_TELEMETRY: "1"

@@ -86,8 +86,9 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   op de LXC (ClickHouse + Postgres + Keeper + collector). Eerste login: open `http://<lxc-ip>/`
   en registreer de instance-admin vóór eerste gebruik.
 - **netdata**: externe (niet-s4ndyp) app; draait als metrics-PARENT (centralisatiepunt) waarop je
-  later child-agents laat streamen. Poort 19999 (dashboard + API + streaming) publiceert op host 80;
-  die poort moet vanaf de child-hosts bereikbaar blijven (niet dichtzetten — streaming is geen HTTP).
+  later child-agents laat streamen. Container-intern 19999; gepubliceerd op host 80 (browser-route) én
+  host 19999 (streaming-endpoint voor child-agents — de netdata-standaardpoort, geen HTTP dus geen
+  browser-dienst). Die 19999 moet vanaf de child-hosts bereikbaar blijven (niet dichtzetten).
   De API-sleutel staat niet in git: de template `netdata/stream.conf` bevat de placeholder
   `@NETDATA_STREAM_API_KEY@`, die de `repo-init`-container bij de deploy vervangt door de waarde van de
   stack-variabele NETDATA_STREAM_API_KEY uit Infisical (map `/netdata`, via `DOCKHAND_SECRET_SELECTOR`).
