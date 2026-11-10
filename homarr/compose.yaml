@@ -1,0 +1,51 @@
+# homarr — Homarr dashboard (Next.js + SQLite + Redis)
+#
+# Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
+#
+# name: vast projectnaam — de volumes heten homarr_homarr_data en homarr_homarr_redis
+# en mogen niet verschuiven als de stack uit een andere map (Dockhand) wordt gedeployed.
+name: homarr
+
+services:
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    pull_policy: always
+    container_name: homarr
+    restart: unless-stopped
+    ports:
+      - "${HOMARR_PORT:-80}:7575"
+    environment:
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY}
+      DB_DRIVER: ${DB_DRIVER:-better-sqlite3}
+      DB_DIALECT: ${DB_DIALECT:-sqlite}
+      DB_URL: ${DB_URL:-/appdata/db/db.sqlite}
+      AUTH_PROVIDERS: ${AUTH_PROVIDERS:-credentials}
+      AUTH_URL: ${AUTH_URL}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:-}
+      AUTH_OIDC_CLIENT_ID: ${AUTH_OIDC_CLIENT_ID:-}
+      AUTH_OIDC_CLIENT_SECRET: ${AUTH_OIDC_CLIENT_SECRET:-}
+      AUTH_OIDC_CLIENT_NAME: ${AUTH_OIDC_CLIENT_NAME:-}
+      AUTH_OIDC_SCOPE_OVERWRITE: ${AUTH_OIDC_SCOPE_OVERWRITE:-}
+      AUTH_OIDC_ENABLE_DANGEROUS_ACCOUNT_LINKING: ${AUTH_OIDC_ENABLE_DANGEROUS_ACCOUNT_LINKING:-}
+      TURBO_TELEMETRY_DISABLED: ${TURBO_TELEMETRY_DISABLED:-1}
+      REDIS_IS_EXTERNAL: "false"
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - homarr_data:/appdata
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    pull_policy: always
+    container_name: homarr-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - homarr_redis:/data
+
+volumes:
+  homarr_data:
+  homarr_redis:
