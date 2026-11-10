@@ -2,6 +2,11 @@
 #
 # Start:  docker compose up -d
 # Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
+#
+# name: vast projectnaam — het volume heet listvault_listvault_data en dat mag niet
+# verschuiven als de stack uit een andere map (Dockhand) wordt gedeployed.
+name: listvault
+
 services:
   app:
     image: ghcr.io/s4ndyp/listvault:latest
