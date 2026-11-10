@@ -92,6 +92,11 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   De API-sleutel staat niet in git: de template `netdata/stream.conf` bevat de placeholder
   `@NETDATA_STREAM_API_KEY@`, die de `repo-init`-container bij de deploy vervangt door de waarde van de
   stack-variabele NETDATA_STREAM_API_KEY uit Infisical (map `/netdata`, via `DOCKHAND_SECRET_SELECTOR`).
+  **Lokaal dashboard = `http://<lxc-ip>/v3/`** (of https://netdata.xdio.nl/v3/): de root `/` toont de
+  v2-onboarding-splash met een **Sign-in**-knop die naar app.netdata.cloud leidt — die overslaan
+  (of op de splash "Skip and use the dashboard anonymously" kiezen; op `/v3/` is er geen splash).
+  Alles blijft lokaal: geen claim-token (cloud.d leeg → ACLK uit), DISABLE_TELEMETRY/DO_NOT_TRACK aan,
+  en de browser-toegang op het domein loopt via de Pocket ID-gate.
   Retentie en web-ACL staan in `netdata.conf` (tiers 2GiB/1GiB/1GiB). Child toevoegen: zet in
   `/etc/netdata/stream.conf` van die host `[stream]` met `enabled = yes`,
   `destination = 10.5.0.<parent-vmid>:19999` en dezelfde `api key`.

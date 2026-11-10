@@ -26,6 +26,18 @@
 #       api key = <dezelfde sleutel>
 # Daarna verschijnt die host vanzelf als node in het dashboard van deze parent.
 #
+# LET OP — alles lokaal, geen Netdata Cloud:
+# `http://<lxc-ip>/` toont sinds Netdata v2 een onboarding-splash ("Welcome to Netdata /
+# Please sign-in to continue"). De knop **Sign-in** stuurt je naar app.netdata.cloud —
+# niet aanklikken. Het LOKALE dashboard zit op **/v3/** (daar levert de agent dezelfde SPA
+# met `isLocal: true` en laadt de dashboard-UI direct, geen sign-in). Gebruik dus
+# http://<lxc-ip>/v3/ of https://netdata.xdio.nl/v3/; op de splash is er ook een link
+# "Skip and use the dashboard anonymously" — dat laadt het lokale dashboard eveneens.
+# Er wordt niets naar de cloud gestuurd: geen claim-token (/var/lib/netdata/cloud.d is leeg,
+# dus ACLK blijft uit) en DISABLE_TELEMETRY/DO_NOT_TRACK staan aan.
+# NB: de nieuwe dashboard-UI heeft géén eigen login — de passkey-gate op het domein
+# (Zoraxy + Pocket ID) is wat de browser-toegang afschermt.
+#
 # Upgrade: image-tag ophogen (Docker Hub netdata/netdata, bv. v2.13.x) en redeployen.
 name: netdata
 
