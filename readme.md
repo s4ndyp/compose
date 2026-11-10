@@ -23,6 +23,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
 | locator | Locator (PocketBase) | 80 → 8090 | image, volume |
+| netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards) | 80 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabele NETDATA_STREAM_API_KEY (Infisical map /netdata) |
 | notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
 | onvif-explorer | OnvifExplorer + go2rtc | 80 → 8080; go2rtc 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
@@ -84,3 +85,12 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   Upgrade via nieuwe Foundry-forge of tags rechtstreeks ophogen. Minimaal 8 GB RAM
   op de LXC (ClickHouse + Postgres + Keeper + collector). Eerste login: open `http://<lxc-ip>/`
   en registreer de instance-admin vóór eerste gebruik.
+- **netdata**: externe (niet-s4ndyp) app; draait als metrics-PARENT (centralisatiepunt) waarop je
+  later child-agents laat streamen. Poort 19999 (dashboard + API + streaming) publiceert op host 80;
+  die poort moet vanaf de child-hosts bereikbaar blijven (niet dichtzetten — streaming is geen HTTP).
+  De API-sleutel staat niet in git: de template `netdata/stream.conf` bevat de placeholder
+  `@NETDATA_STREAM_API_KEY@`, die de `repo-init`-container bij de deploy vervangt door de waarde van de
+  stack-variabele NETDATA_STREAM_API_KEY uit Infisical (map `/netdata`, via `DOCKHAND_SECRET_SELECTOR`).
+  Retentie en web-ACL staan in `netdata.conf` (tiers 2GiB/1GiB/1GiB). Child toevoegen: zet in
+  `/etc/netdata/stream.conf` van die host `[stream]` met `enabled = yes`,
+  `destination = 10.5.0.<parent-vmid>:19999` en dezelfde `api key`.

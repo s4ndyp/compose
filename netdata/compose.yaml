@@ -1,0 +1,92 @@
+# netdata — Netdata (self-hosted PARENT / metrics-centralisatiepunt met eigen dashboards)
+#
+# Bron: netdata/netdata — officiële Docker-installatiegids en de parent/child-referentie
+# (https://learn.netdata.cloud/docs/netdata-parents/parent-child-configuration-reference).
+# Er is geen apart "parent-image": een parent is een gewone agent met een stream.conf
+# die inkomende streams accepteert. Deze stack doet precies dat.
+#
+# Poort: web-dashboard, API én de metrics-streaming delen dezelfde poort — intern 19999,
+# host 80 (${NETDATA_PORT:-80}). Child-agents streamen naar http://10.5.0.<vmid>:19999,
+# dus die poort moet vanaf de child-hosts bereikbaar blijven (niet dichtzetten).
+#
+# Config: /etc/netdata is een named volume; de eenmalige container 'netdata-repo-init'
+# vult het met netdata.conf + stream.conf. Bestands-binds werken niet op een externe
+# Dockhand-daemon (de daemon kent de repo-checkout niet → docker maakt er een lege map
+# van; zie skill lxc-app-deploy). De API-sleutel staat NIET in git: de template
+# netdata/stream.conf bevat de placeholder @NETDATA_STREAM_API_KEY@, die de
+# init-container bij deploy vervangt door de waarde van de stack-variabele
+# NETDATA_STREAM_API_KEY (uit Infisical map /netdata via DOCKHAND_SECRET_SELECTOR).
+#
+# Child (agent) toevoegen op een andere host — in /etc/netdata/stream.conf van die host:
+#   [stream]
+#       enabled = yes
+#       destination = 10.5.0.<parent-vmid>:19999
+#       api key = <dezelfde sleutel>
+# Daarna verschijnt die host vanzelf als node in het dashboard van deze parent.
+#
+# Upgrade: image-tag ophogen (Docker Hub netdata/netdata, bv. v2.13.x) en redeployen.
+name: netdata
+
+services:
+  # Eenmalige initialisatie van het config-volume (idempotent: bestaande bestanden
+  # worden overschreven, netdata zelf doet daarna 'cp -an' en raakt ze niet aan).
+  netdata-repo-init:
+    container_name: netdata-repo-init
+    image: alpine:3.22
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        BASE=https://raw.githubusercontent.com/s4ndyp/compose/main/netdata
+        wget -q -O /etc/netdata/netdata.conf "$$BASE/netdata.conf"
+        wget -q -O /tmp/stream.conf.tpl      "$$BASE/stream.conf"
+        sed "s|@NETDATA_STREAM_API_KEY@|$$NETDATA_STREAM_API_KEY|" /tmp/stream.conf.tpl > /etc/netdata/stream.conf
+        rm -f /tmp/stream.conf.tpl
+        grep -q . /etc/netdata/netdata.conf /etc/netdata/stream.conf
+        echo "netdata config-initialisatie klaar"
+    restart: "no"
+    environment:
+      # API-sleutel voor inkomende streams; uit Infisical (map /netdata) of Dockhand Stack-Environment.
+      NETDATA_STREAM_API_KEY: ${NETDATA_STREAM_API_KEY:?Zet NETDATA_STREAM_API_KEY in Infisical map /netdata (of Dockhand Stack-Environment)}
+    volumes:
+      - netdata_config:/etc/netdata
+
+  netdata:
+    container_name: netdata
+    image: netdata/netdata:v2.12.3
+    hostname: netdata-parent
+    restart: unless-stopped
+    # eigen PID-namespace delen met de LXC: zonder dit ziet de collector alleen zichzelf
+    pid: host
+    cap_add:
+      - SYS_PTRACE
+    ports:
+      - "${NETDATA_PORT:-80}:19999"
+    environment:
+      # geen Netdata Cloud-claim, geen anonieme telemetrie
+      DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+      TZ: ${TZ:-Europe/Amsterdam}
+    volumes:
+      # config (netdata.conf + stream.conf) — gevuld door netdata-repo-init
+      - netdata_config:/etc/netdata
+      # database (metrics-historie van deze parent én van alle child-nodes)
+      - netdata_lib:/var/lib/netdata
+      - netdata_cache:/var/cache/netdata
+      # host-metrics van de LXC zelf (de prefix /host is de 'host access prefix')
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      # container-metrics van deze LXC
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      netdata-repo-init:
+        condition: service_completed_successfully
+
+volumes:
+  netdata_config:
+  netdata_lib:
+  netdata_cache:
