@@ -117,3 +117,8 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   die redirect (bv. KPN Amstelveen 61186): upload hoort dan in de honderden Mbps te zijn.
   Nieuwste tag bepalen met `gh release list -R autobrr/netronome` (de registry-tags-API
   pagineert en verbergt de nieuwste tags).
+  Losse resultaten wissen kan NIET via UI of API — de enige opschoonroute is op leeftijd
+  (`POST /api/history/purge` met `{"olderThanDays":N}`; 0 = alles). Selectief wissen doe je
+  rechtstreeks: container stoppen, `sqlite3 /data/.config/netronome/netronome.db
+  "delete from speed_tests where id in (…)"` via een wegwerpcontainer met hetzelfde volume
+  (het image heeft sqlite3 aan boord; `cp -a` de db eerst als backup), container weer starten.
