@@ -22,13 +22,15 @@
 # publiek bereikbaar is, daarna is registratie gesloten. Voor OIDC later:
 # NETRONOME__OIDC_ISSUER / CLIENT_ID / CLIENT_SECRET / REDIRECT_URL zetten.
 #
-# Upgrade: image-tag ophogen (ghcr.io/autobrr/netronome, bv. v0.6.x) en redeployen.
+# Upgrade: image-tag ophogen (ghcr.io/autobrr/netronome, bv. v0.17.x) en redeployen.
+# NB: bepaal de nieuwste tag met `gh release list -R autobrr/netronome`, niet met
+# de registry-tags-API — die lijst pagineert en toont oude tags als 'nieuwste'.
 name: netronome
 
 services:
   netronome:
     container_name: netronome
-    image: ghcr.io/autobrr/netronome:v0.6.0
+    image: ghcr.io/autobrr/netronome:v0.16.0
     restart: unless-stopped
     ports:
       # browser-route: host 80 → container 7575
@@ -38,11 +40,9 @@ services:
       # optioneel: sessiesleutel vastzetten i.p.v. de automatisch gegenereerde
       # (leeg = de app schrijft zelf een random secret naar /data/config/config.toml)
       NETRONOME__SESSION_SECRET: ${NETRONOME_SESSION_SECRET:-}
-      # Test-budget voor één speedtest.net-meting (download + upload + opslaan vallen
-      # ALLEMAAL binnen deze ene deadline — de default 30 s is te krap op een
-      # gigabit-lijn: de uploadfase wordt afgekapt (lage uploadwaarde) en het
-      # wegschrijven van het resultaat eindigt in 'context deadline exceeded',
-      # waarna de UI een timeout toont. 120 s geeft beide fases + de DB-write ruimte.
+      # Test-budget voor één speedtest.net-meting: download + upload vallen binnen deze
+      # ene deadline. De default 30 s is te krap op een gigabit-lijn (download alleen al
+      # ~20 s), dan wordt de uploadfase afgekapt. 120 s geeft beide fases ruimte.
       NETRONOME__SPEEDTEST_TIMEOUT: ${NETRONOME_SPEEDTEST_TIMEOUT:-120}
     volumes:
       # database + gegenereerde config + logs
