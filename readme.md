@@ -24,7 +24,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
 | locator | Locator (PocketBase) | 80 → 8090 | image, volume |
 | netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards) | 80 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabele NETDATA_STREAM_API_KEY (Infisical map /netdata) |
-| netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.6.0` (gepind), volume, `NET_RAW` (ping/mtr) |
+| netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
 | onvif-explorer | OnvifExplorer + go2rtc | 80 → 8080; go2rtc 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
@@ -108,3 +108,12 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   eerste admin via `POST /api/auth/register` (`{"username":…,"password":…}`) vóór de app publiek
   staat — daarna is registratie gesloten. Zonder login is alleen 127.0.0.1 toegestaan (whitelist).
   OIDC kan later via `NETRONOME__OIDC_ISSUER`/`_CLIENT_ID`/`_CLIENT_SECRET`/`_REDIRECT_URL`.
+  **Gebruik v0.16.0 of nieuwer** — daar zitten twee fixes in die deze deploy nodig had:
+  de serverselectie-lijst (v0.6.0 pingt elke server met één gedeeld deadline van 4 s en
+  filtert daarna alles weg → lege lijst; v0.16.0 houdt een duurzame catalogus bij zonder
+  elke server te pingen) en de uploadmeting (de Go-bibliotheek kan een POST-redirect niet
+  volgen, en bijna alle Ookla-servers antwoorden met 307 naar https → upload werd ~3 Mbps;
+  v0.16.0 resolve't die redirect vooraf met een HEAD). Test na een upgrade met een server
+  die redirect (bv. KPN Amstelveen 61186): upload hoort dan in de honderden Mbps te zijn.
+  Nieuwste tag bepalen met `gh release list -R autobrr/netronome` (de registry-tags-API
+  pagineert en verbergt de nieuwste tags).
