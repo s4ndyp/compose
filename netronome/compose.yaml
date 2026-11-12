@@ -38,6 +38,12 @@ services:
       # optioneel: sessiesleutel vastzetten i.p.v. de automatisch gegenereerde
       # (leeg = de app schrijft zelf een random secret naar /data/config/config.toml)
       NETRONOME__SESSION_SECRET: ${NETRONOME_SESSION_SECRET:-}
+      # Test-budget voor één speedtest.net-meting (download + upload + opslaan vallen
+      # ALLEMAAL binnen deze ene deadline — de default 30 s is te krap op een
+      # gigabit-lijn: de uploadfase wordt afgekapt (lage uploadwaarde) en het
+      # wegschrijven van het resultaat eindigt in 'context deadline exceeded',
+      # waarna de UI een timeout toont. 120 s geeft beide fases + de DB-write ruimte.
+      NETRONOME__SPEEDTEST_TIMEOUT: ${NETRONOME_SPEEDTEST_TIMEOUT:-120}
     volumes:
       # database + gegenereerde config + logs
       - netronome_data:/data
