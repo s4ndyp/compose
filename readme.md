@@ -24,6 +24,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
 | locator | Locator (PocketBase) | 80 → 8090 | image, volume |
 | netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards) | 80 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabele NETDATA_STREAM_API_KEY (Infisical map /netdata) |
+| netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.6.0` (gepind), volume, `NET_RAW` (ping/mtr) |
 | notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
 | onvif-explorer | OnvifExplorer + go2rtc | 80 → 8080; go2rtc 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
@@ -100,3 +101,10 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   Retentie en web-ACL staan in `netdata.conf` (tiers 2GiB/1GiB/1GiB). Child toevoegen: zet in
   `/etc/netdata/stream.conf` van die host `[stream]` met `enabled = yes`,
   `destination = 10.5.0.<parent-vmid>:19999` en dezelfde `api key`.
+- **netronome**: externe (niet-s4ndyp) app. Container-intern 7575, host 80. SQLite-variant
+  (upstream levert ook een postgres-compose; niet nodig voor één LXC). Data in het named volume
+  `netronome_data` (/data: db, gegenereerde config.toml met session secret, logs). `NET_RAW` is
+  vereist voor ping/mtr/traceroute (packet-loss-monitor). Eigen gebruikerslogin: registreer de
+  eerste admin via `POST /api/auth/register` (`{"username":…,"password":…}`) vóór de app publiek
+  staat — daarna is registratie gesloten. Zonder login is alleen 127.0.0.1 toegestaan (whitelist).
+  OIDC kan later via `NETRONOME__OIDC_ISSUER`/`_CLIENT_ID`/`_CLIENT_SECRET`/`_REDIRECT_URL`.

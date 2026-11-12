@@ -1,0 +1,56 @@
+# netronome — Netronome (netwerk-snelheidstesten + monitoring, autobrr)
+#
+# Bron: github.com/autobrr/netronome — de eigen distrib/docker/docker-compose.yml
+# (image ghcr.io/autobrr/netronome, container-poort 7575, data op /data).
+# Dit is de SQLite-variant; upstream heeft ook een postgres-compose, maar SQLite is
+# voor één LXC ruim voldoende en scheelt een tweede service.
+#
+# Poort: container luistert op 7575 (config default, server.host 0.0.0.0 in container).
+# Published: host 80 → 7575, dus de browser-route is http://<lxc-ip>/.
+#
+# Data: /data is een named volume (HOME/XDG_CONFIG_HOME staan in de image op /data).
+# Daar landen netronome.db, de automatisch geschreven config.toml (incl. de
+# session_secret) en de logs. Geen init-container nodig: de app genereert zelf een
+# werkende config met defaults bij de eerste start.
+#
+# Rechten: de app doet ping/mtr/traceroute en packet-loss-metingen. Daarvoor is
+# NET_RAW nodig (anders faalt de privileged_mode-monitor en de packetloss-tab).
+#
+# Auth: Netronome heeft een eigen gebruikerslogin (SQLite-tabel users) en staat
+# ALLEEN vanaf de whitelist (default 127.0.0.1) zonder login open. De eerste
+# gebruiker registreer je via POST /api/auth/register — doe dat vóór de app
+# publiek bereikbaar is, daarna is registratie gesloten. Voor OIDC later:
+# NETRONOME__OIDC_ISSUER / CLIENT_ID / CLIENT_SECRET / REDIRECT_URL zetten.
+#
+# Upgrade: image-tag ophogen (ghcr.io/autobrr/netronome, bv. v0.6.x) en redeployen.
+name: netronome
+
+services:
+  netronome:
+    container_name: netronome
+    image: ghcr.io/autobrr/netronome:v0.6.0
+    restart: unless-stopped
+    ports:
+      # browser-route: host 80 → container 7575
+      - "${APP_PORT:-80}:7575"
+    environment:
+      TZ: ${TZ:-Europe/Amsterdam}
+      # optioneel: sessiesleutel vastzetten i.p.v. de automatisch gegenereerde
+      # (leeg = de app schrijft zelf een random secret naar /data/config/config.toml)
+      NETRONOME__SESSION_SECRET: ${NETRONOME_SESSION_SECRET:-}
+    volumes:
+      # database + gegenereerde config + logs
+      - netronome_data:/data
+    cap_add:
+      # raw sockets voor ping/mtr/traceroute (packetloss-monitor)
+      - NET_RAW
+    healthcheck:
+      # er is geen API-health-endpoint; de SPA op / antwoordt 200 als de server leeft
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7575/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  netronome_data:
