@@ -122,3 +122,9 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   rechtstreeks: container stoppen, `sqlite3 /data/.config/netronome/netronome.db
   "delete from speed_tests where id in (…)"` via een wegwerpcontainer met hetzelfde volume
   (het image heeft sqlite3 aan boord; `cp -a` de db eerst als backup), container weer starten.
+  De serverlijst toont per bron max. 10 servers (`nearestServerLimit`) en de bron kies je in de
+  UI (tandwiel → Speedtest.net): Local = 10 naaste bij de door Ookla bepaalde locatie (KPN
+  Amstelveen valt daar net buiten: ~47 km, #11), Coordinates = 10 naaste bij eigen lat/lon
+  (52.3114 / 4.8701 zet KPN bovenaan), Global = alles wat in de catalogus is opgehaald.
+  De bron-keuze staat in browser-localStorage, dus niet server-side te zetten; een expliciete
+  server-id (61186) werkt ook als die niet in de zichtbare lijst staat.
