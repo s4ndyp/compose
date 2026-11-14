@@ -39,6 +39,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | sync-ms | Sync-MS (PocketBase + collector) | 80 → 8090 | image, volume, interval/retention |
 | tinynote | TinyNote (PocketBase) | 80 → 8080 | image, volume |
 | tracknote | TrackNote (PocketBase + UI) | 80 → 8090 | image, volume |
+| wallpaparr | Wallpaparr (PocketBase + donkere web-UI) | 80 → 8090 | image, volume |
 | wasmme | WasmMe (admin + publiek) | 80 → 80 (publiek); admin 8080 | image x2, gedeeld volume |
 | webkey | WebKey sitebouwer (Python) | 80 → 5050; preview 5051 | image `:beta`, 3 volumes |
 | webtool | WebTool (Node + PocketBase) | 80 → 3000 | image, volume |
@@ -80,6 +81,11 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
+- **wallpaparr**: PocketBase-wallpaperopslag met donkere web-UI; alle API-regels staan open
+  (geen login). Uploaden/taggen/filteren kan in de browser; de Windows/Unix-client
+  (`ghcr.io`-loos: losse binaries uit de repo-releases) haalt wallpapers op via
+  `/api/collections/wallpapers/records` en zet ze als achtergrond, met per-monitor
+  ondersteuning. Voor het toevoegen van wallpapers volstaat poort 80.
 - **signoz**: externe (niet-s4ndyp) app. Upstream distributed geen losse compose meer
   (deprecated sinds v0.130.0); deze stack is gegenereerd met `foundryctl forge`
   (Foundry, flavor=compose) en handmatig gepind op de image-tags uit de tabel.
