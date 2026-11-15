@@ -23,29 +23,10 @@ services:
     image: alpine:3.20
     container_name: headscale-repo-init
     restart: "no"
-    entrypoint: ["/bin/sh", "-c"]
-    command: |
-      set -e
-      B=https://raw.githubusercontent.com/s4ndyp/compose/main/headscale
-      wget -q -O /hs/hs.tmpl "$$B/headscale-config.template.yaml"
-      wget -q -O /hp/hp.tmpl "$$B/headplane-config.template.yaml"
-      wget -q -O /hs/acl.hujson "$$B/acl.hujson"
-      [ -f /hs/extra_records.json ] || printf '[]' > /hs/extra_records.json
-      if [ -n "$$OIDC_CLIENT_ID" ]; then
-        sed -e "s|__OIDC_CLIENT_ID__|$$OIDC_CLIENT_ID|g" -e "s|__OIDC_CLIENT_SECRET__|$$OIDC_CLIENT_SECRET|g" /hs/hs.tmpl > /hs/config.yaml
-        OE=true
-      else
-        sed '/# >>>OIDC/,/# <<<OIDC/d' /hs/hs.tmpl > /hs/config.yaml
-        OE=false
-      fi
-      sed -e "s|__BASE_URL__|$$BASE_URL|g" -e "s|__COOKIE_SECRET__|$$COOKIE_SECRET|g" \
-          -e "s|__API_KEY__|$$HEADSCALE_API_KEY|g" -e "s|__OIDC_ENABLED__|$$OE|g" \
-          -e "s|__OIDC_CLIENT_ID__|$$OIDC_CLIENT_ID|g" -e "s|__OIDC_CLIENT_SECRET__|$$OIDC_CLIENT_SECRET|g" \
-          /hp/hp.tmpl > /hp/config.yaml
-      rm -f /hs/hs.tmpl /hp/hp.tmpl
-      chmod 666 /hs/config.yaml /hs/acl.hujson /hs/extra_records.json /hp/config.yaml
-      chmod 777 /hs /hp
-      echo "repo-init: configs gerenderd (OIDC=$$OE)"
+    # Eén regel: het renderscript staat in de repo (render.sh) en wordt gedownload.
+    # (Een multiline `command: |` wordt door de deploy-laag per regel als los argv-item
+    # doorgegeven, waardoor alleen `set` draait — vandaar deze vorm.)
+    entrypoint: ["/bin/sh", "-c", "wget -qO- https://raw.githubusercontent.com/s4ndyp/compose/main/headscale/render.sh | sh"]
     environment:
       BASE_URL: ${BASE_URL:-https://headplane.xdio.nl}
       COOKIE_SECRET: ${COOKIE_SECRET:-}
@@ -91,6 +72,8 @@ services:
     volumes:
       - headplane-config:/etc/headplane:ro
       - headplane-data:/var/lib/headplane
+      # Lees-/schrijfrecht op de headscale-config: de UI beheert DNS/ACL en herstart headscale.
+      - headscale-config:/etc/headscale
       # Alleen-lezen toegang tot de docker-socket: headplane herstart headscale na
       # een configwijziging vanuit de UI (image draait als root, dus geen group_add nodig).
       - /var/run/docker.sock:/var/run/docker.sock:ro
