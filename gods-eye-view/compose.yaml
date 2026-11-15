@@ -1,0 +1,35 @@
+# gods-eye-view — God's Eye View (vliegtuigen/schepen/satellieten/CCTV op een 3D-globe)
+#
+# Start:  docker compose up -d
+# Gebruiker opent de app in de browser op poort 80 van de eigen LXC/host.
+#
+# Geen publieke image → BuildKit bouwt de image uit de GitHub-context. Er zijn
+# géén bind-mounts: die werken niet op een externe docker-daemon (Dockhand
+# draait compose op zijn eigen host, de daemon op de app-LXC lost de paden op).
+# De Dockerfile zet zelf HOST=0.0.0.0, PORT=4173, EXPOSE 4173 en een healthcheck.
+#
+# LET OP — dit is geen statische site: de Vite-dev-server in de container draait
+# óók de API-proxies en bemiddelt provider-keys (OpenAI Realtime, Google, AIS,
+# FIRMS, TomTom, ...). Zonder keys werkt de app keyless (Esri World Imagery en
+# 21 van de 23 lagen). Zet je keys via de omgeving, dan kan iedereen die poort
+# 80 van deze LXC haalt je quota opmaken → zet de app dan achter de
+# Pocket-ID-gate (recept: skill proxlan-dns-management) of houd hem LAN-only.
+#
+# Geen named volumes voor .gev-cache/.gev-logs: een vers named volume is
+# root-owned terwijl de container als uid 1000 (`node`) draait → EACCES. De
+# caches zijn puur regeneratief en horen niet in een volume.
+services:
+  gods-eye-view:
+    build:
+      context: https://github.com/bilawalsidhu/gods-eye-view.git#main
+    image: gods-eye-view:latest
+    container_name: gods-eye-view
+    restart: unless-stopped
+    ports:
+      # Eén 80-mapping per stack (browser-toegang op host-poort 80 van de LXC).
+      # De container-interne poort blijft 4173; Vite/dev-server luistert daar.
+      - "${GODS_EYE_VIEW_PORT:-80}:4173"
+    environment:
+      # De Host-allowlist van de app accepteert IP-adressen en localhost altijd;
+      # voor toegang via de Zoraxy-route is de hostnaam hier nodig.
+      GEV_ALLOWED_HOSTS: ${GEV_ALLOWED_HOSTS:-gods-eye-view.xdio.nl}

@@ -18,6 +18,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | fileshare | FileShare (Node) | 80 → 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
 | financepro | FinancePro (PocketBase) | 80 → 8090 | image, volume |
 | gpstag | GPSTag (PocketBase + hooks) | 80 → 8090 | image, volume |
+| gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
 | iconator | Iconator (PocketBase) | 80 → 8080 | image, volume |
 | ipey | iPEY (Node + nginx) | 80 → 80 | image |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
@@ -74,6 +75,13 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   `pb_migrations` komen via een eenmalige `repo-init`-container in een volume.
   Zet `OPENROUTER_API_KEY` in `.env` om AI-analyse werkend te krijgen.
 - **fileshare / rtsp2onvif**: bouwen eveneens vanaf GitHub (BuildKit git-context).
+- **gods-eye-view**: externe (niet-s4ndyp) app. Geen publieke image → de image wordt bij de deploy
+  door BuildKit uit de GitHub-context gebouwd (Dockhand-git-stack vereist daarom `buildOnDeploy: true`).
+  Dit is géén statische site: de Vite-dev-server draait óók de API-proxies en bemiddelt provider-keys.
+  Keyless werkt de app (Esri World Imagery + 21 van de 23 lagen); zodra je keys zet kan iedereen die
+  poort 80 haalt je quota opmaken → dan een Pocket-ID-gate ervoor (recept: skill `proxlan-dns-management`).
+  De Host-allowlist accepteert IP + localhost automatisch; de Zoraxy-route vergt `GEV_ALLOWED_HOSTS`
+  met de hostnaam (default in de compose: `gods-eye-view.xdio.nl`). De build (`npm ci`) is zwaar → 4 GB RAM.
 - **infisical**: externe (niet-s4ndyp) app; ook dashbrr en uptime-kotlin zijn extern. Doe `cp .env.example .env`
   op de host, gegenereer eigen `ENCRYPTION_KEY`/`AUTH_SECRET` en bewaar `ENCRYPTION_KEY`
   offline — zonder die sleutel is een `pg_data`-backup onleesbaar. Minimaal 4 GB RAM aanbevolen.
