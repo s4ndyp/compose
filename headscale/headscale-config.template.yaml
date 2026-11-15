@@ -44,7 +44,8 @@ derp:
 disable_check_updates: false
 
 node:
-  expiry: 0
+  # 180d ≈ de Tailscale-SaaS-default; OIDC-authenticated nodes nemen deze waarde over.
+  expiry: 180d
   ephemeral:
     inactivity_timeout: 30m
 
@@ -102,5 +103,4 @@ oidc:
   pkce:
     enabled: true
     method: S256
-  expiry: 180d
 # OIDC-END
