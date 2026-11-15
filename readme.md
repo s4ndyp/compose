@@ -20,6 +20,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | forgejo | Forgejo (extern; self-hosted Git-service, Gitea-fork) | 80 → 3000; SSH 2222 → 2222 | image `codeberg.org/forgejo/forgejo:17.0.1` (gepind), volume `forgejo_data`, OIDC via Pocket ID (auth-bron in DB) |
 | gpstag | GPSTag (PocketBase + hooks) | 80 → 8090 | image, volume |
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
+| headscale | Headscale + Headplane (extern; Tailscale-controlserver + web-UI) | 80 → 3000 (UI op `/admin`); control/API 8080 → 8080 | images gepind (`headscale 0.29.7`, `headplane 0.8.2`), 4 volumes; stack-variabelen COOKIE_SECRET/HEADSCALE_API_KEY/OIDC_* (Infisical map `/headscale`) |
 | iconator | Iconator (PocketBase) | 80 → 8080 | image, volume |
 | ipey | iPEY (Node + nginx) | 80 → 80 | image |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
@@ -51,7 +52,9 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
 dyncompare `sync` (8098, peer-endpoint), onvif-explorer/rtsp2onvif `go2rtc` (1984 en
 stream-poorten), wasmme `admin` (8080), webkey `preview` (5051), signoz `ingester`
-(4317/4318, OTLP-inname voor telemetry van andere hosts). Snapzilla's PocketBase
+(4317/4318, OTLP-inname voor telemetry van andere hosts), headscale `headscale`
+(8080 — de control-poort waarop de Tailscale-clients verbinden; de web-UI van headplane
+houdt 80). Snapzilla's PocketBase
 en analyzer zijn alleen intern bereikbaar — de web-nginx proxyt `/api/` en `/_/` naar
 PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
 
@@ -116,6 +119,29 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   Retentie en web-ACL staan in `netdata.conf` (tiers 2GiB/1GiB/1GiB). Child toevoegen: zet in
   `/etc/netdata/stream.conf` van die host `[stream]` met `enabled = yes`,
   `destination = 10.5.0.<parent-vmid>:19999` en dezelfde `api key`.
+- **headscale + headplane**: externe (niet-s4ndyp) app. Headscale is een self-hosted
+  Tailscale-controlserver (WireGuard-mesh zonder Tailscale-account); headplane is de web-UI
+  erboven (upstream image `ghcr.io/tale/headplane`, draait als root in de container).
+  Twee routes: `headplane.xdio.nl` → `<lxc>:80` (UI op het pad **`/admin`**) en
+  `headscale.xdio.nl` → `<lxc>:8080` (de `server_url` waarop Tailscale-clients verbinden —
+  via Zoraxy, met het wildcard-certificaat; clients hebben https nodig).
+  Headplane praat server-side met `http://headscale:8080` over het compose-netwerk.
+  Beide configs zijn **templates in de repo**: `repo-init` rendert ze met de stackvariabelen
+  COOKIE_SECRET, HEADSCALE_API_KEY en OIDC_CLIENT_ID/OIDC_CLIENT_SECRET (Infisical map
+  `/headscale`) naar de volumes `headscale-config` en `headplane-config`. Zonder OIDC-variabelen
+  start de stack met SSO uit; het OIDC-blok in `headscale-config.template.yaml` staat tussen
+  `# >>>OIDC` / `# <<<OIDC` en wordt dan weggelaten. De headscale-API-key maak je ná de eerste
+  deploy: `docker exec headscale headscale apikeys create --expiration 365d` → als stackvariabele
+  HEADSCALE_API_KEY zetten en opnieuw deployen.
+  SSO loopt via Pocket ID met één client voor beide diensten (callbacks
+  `https://headplane.xdio.nl/admin/oidc/callback` én `https://headscale.xdio.nl/oidc/callback`,
+  `pkceEnabled=true`). OIDC `only_start_if_oidc_is_available` staat uit: de LXC-resolver moet
+  `pocket.xdio.nl` kunnen resolven (PVE `nameserver`, zie skill `proxlan-dns-management`).
+  MagicDNS draait met `base_domain: proxlan.nl` en de AdGuard-servers als nameservers, zodat
+  tailnet-clients de LAN-namen (`*.xdio.nl`, `*.prolan.nl`) gewoon oplossen; extra A-records
+  beheer je in de UI (bestand `extra_records.json`, dat headscale live inleest).
+  Geen embedded DERP (de host is LAN-only, STUN/UDP naar buiten kan niet) — clients gebruiken
+  de publieke DERP-map als relay. Minimaal 2 GB RAM.
 - **netronome**: externe (niet-s4ndyp) app. Container-intern 7575, host 80. SQLite-variant
   (upstream levert ook een postgres-compose; niet nodig voor één LXC). Data in het named volume
   `netronome_data` (/data: db, gegenereerde config.toml met session secret, logs). `NET_RAW` is
