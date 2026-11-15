@@ -130,9 +130,12 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   COOKIE_SECRET, HEADSCALE_API_KEY en OIDC_CLIENT_ID/OIDC_CLIENT_SECRET (Infisical map
   `/headscale`) naar de volumes `headscale-config` en `headplane-config`. Zonder OIDC-variabelen
   start de stack met SSO uit; het OIDC-blok in `headscale-config.template.yaml` staat tussen
-  `# >>>OIDC` / `# <<<OIDC` en wordt dan weggelaten. De headscale-API-key maak je ná de eerste
-  deploy: `docker exec headscale headscale apikeys create --expiration 365d` → als stackvariabele
-  HEADSCALE_API_KEY zetten en opnieuw deployen.
+  `# OIDC-BEGIN` / `# OIDC-END` en wordt dan weggelaten. De templates komen uit de repo-tarball
+  van **codeload.github.com**, gepind op de commit in de stackvariabele `HEADSCALE_REF`
+  (zet die na elke wijziging op de nieuwe SHA — raw.githubusercontent én codeload cachen
+  enkele minuten, en dan rendert een verse deploy nog de oude template). De headscale-API-key
+  maak je ná de eerste deploy: `docker exec headscale /ko-app/headscale apikeys create
+  --expiration 365d` → als stackvariabele HEADSCALE_API_KEY zetten en opnieuw deployen.
   SSO loopt via Pocket ID met één client voor beide diensten (callbacks
   `https://headplane.xdio.nl/admin/oidc/callback` én `https://headscale.xdio.nl/oidc/callback`,
   `pkceEnabled=true`). OIDC `only_start_if_oidc_is_available` staat uit: de LXC-resolver moet
