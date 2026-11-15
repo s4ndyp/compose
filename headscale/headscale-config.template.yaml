@@ -1,8 +1,8 @@
 # Headscale-config TEMPLATE. De repo-init-container rendert dit bestand naar
 # /etc/headscale/config.yaml in het volume headscale-config; de placeholders
 # __OIDC_CLIENT_ID__ / __OIDC_CLIENT_SECRET__ komen uit Dockhand-stackvariabelen.
-# Het OIDC-blok tussen de markers OIDC-BEGIN / OIDC-END wordt weggelaten zolang er
-# geen client-id is gezet. (Noem de markers hier niet letterlijk: sed matcht op tekst.)
+# Het SSO-blok onderaan dit bestand wordt weggelaten zolang er geen client-id is gezet.
+# (De marker-regels staan daar; noem ze hier niet — sed matcht op tekst.)
 #
 # Let op: headplane kan deze config ook aanpassen (netwerk-instellingen in de UI);
 # een nieuwe deploy overschrijft dat weer met deze template.
