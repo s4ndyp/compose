@@ -35,11 +35,6 @@ services:
     volumes:
       - headscale-config:/hs
       - headplane-config:/hp
-      # Templates + renderscript uit de (gesynchroniseerde) stackmap — altijd de verse versie.
-      - ./render.sh:/src/render.sh:ro
-      - ./headscale-config.template.yaml:/src/headscale-config.template.yaml:ro
-      - ./headplane-config.template.yaml:/src/headplane-config.template.yaml:ro
-      - ./acl.hujson:/src/acl.hujson:ro
 
   headscale:
     image: headscale/headscale:0.29.7
