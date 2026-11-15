@@ -2,15 +2,15 @@
 # Rendert de headscale- en headplane-config uit de templates van deze repo naar de
 # twee config-volumes (/hs = headscale-config, /hp = headplane-config).
 #
-# Draait als eenmalige init-container bij elke deploy. De templates worden als
-# bind-mount uit de (door Dockhand gesynchroniseerde) stackmap gelezen — niet via
-# wget van GitHub: raw.githubusercontent.com cachet enkele minuten, waardoor een
-# verse deploy anders nog de oude template rendert.
+# Draait als eenmalige init-container bij elke deploy. De templates staan in de
+# repo-tarball die de entrypoint al naar /tmp heeft gehaald (SRC hieronder).
+# Bewust niet via raw.githubusercontent.com: die CDN cachet enkele minuten, waardoor
+# een verse deploy anders nog de oude template rendert.
 # Env-variabelen komen uit de Dockhand-stackvariabelen (COOKIE_SECRET,
 # HEADSCALE_API_KEY, OIDC_*, BASE_URL).
 set -eu
 
-SRC="${SRC:-/src}"
+SRC="${SRC:-/tmp/compose-main/headscale}"
 
 cp "$SRC/headscale-config.template.yaml" /hs/hs.tmpl
 cp "$SRC/headplane-config.template.yaml" /hp/hp.tmpl

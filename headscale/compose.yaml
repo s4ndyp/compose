@@ -24,8 +24,8 @@ services:
     container_name: headscale-repo-init
     restart: "no"
     # Eén regel (geen multiline `command: |`: dat wordt door de deploy-laag per regel
-    # als los argv-item doorgegeven). Templates + script komen uit de stackmap zelf.
-    entrypoint: ["/bin/sh", "/src/render.sh"]
+    # als los argv-item doorgegeven). Script + templates komen uit de stackmap zelf.
+    entrypoint: ["/bin/sh", "-c", "cd /src && exec sh ./render.sh"]
     environment:
       BASE_URL: ${BASE_URL:-https://headplane.xdio.nl}
       COOKIE_SECRET: ${COOKIE_SECRET:-}
