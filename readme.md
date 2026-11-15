@@ -17,6 +17,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | filehog | FileHog (PocketBase) | 80 → 8080 | image, volume |
 | fileshare | FileShare (Node) | 80 → 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
 | financepro | FinancePro (PocketBase) | 80 → 8090 | image, volume |
+| forgejo | Forgejo (extern; self-hosted Git-service, Gitea-fork) | 80 → 3000; SSH 2222 → 2222 | image `codeberg.org/forgejo/forgejo:17.0.1` (gepind), volume `forgejo_data`, OIDC via Pocket ID (auth-bron in DB) |
 | gpstag | GPSTag (PocketBase + hooks) | 80 → 8090 | image, volume |
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
 | iconator | Iconator (PocketBase) | 80 → 8080 | image, volume |
@@ -142,3 +143,15 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   (52.3114 / 4.8701 zet KPN bovenaan), Global = alles wat in de catalogus is opgehaald.
   De bron-keuze staat in browser-localStorage, dus niet server-side te zetten; een expliciete
   server-id (61186) werkt ook als die niet in de zichtbare lijst staat.
+- **forgejo**: externe (niet-s4ndyp) app. Officiële image `codeberg.org/forgejo/forgejo` (Alpine;
+  entrypoint chownt /data). Container-intern 3000 (web) + 22 (ingebouwde SSH), host 80 resp. 2222.
+  Alle config via `FORGEJO__<sectie>__<SLEUTEL>` env-vars → de image schrijft die bij de start naar
+  `/data/gitea/conf/app.ini`. `INSTALL_LOCK=true` slaat de web-installatiewizard over; de instance-admin
+  maak je aan de CLI aan: `docker compose exec -u git forgejo forgejo admin user create --admin
+  --username <naam> --email <mail> --password <pw>` (of `--random-password`). `SECRET_KEY` staat niet in
+  de compose — Forgejo genereert en bewaart er zelf een in app.ini (hoort bij de back-up; versleutelt
+  2FA-/Actions-secrets). OIDC (Pocket ID) is een **authenticatiebron in de DB**, niet in dit bestand:
+  `forgejo admin auth add-oauth --provider openidConnect --name pocket --key <id> --secret <secret>
+  --auto-discover-url https://pocket.xdio.nl/.well-known/openid-configuration --scopes 'openid email profile'`
+  met callback `https://forgejo.xdio.nl/user/oauth2/pocket/callback` (pkceEnabled=false). De app-host
+  moet `pocket.xdio.nl` server-side kunnen resolven (CT-resolver via PVE, zie skill proxlan-dns-management).

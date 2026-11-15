@@ -1,0 +1,78 @@
+# forgejo — Forgejo (self-hosted Git-service, Gitea-fork)
+#
+# Externe (niet-s4ndyp) app. Bron: codeberg.org/forgejo/forgejo — de officiële
+# image (Alpine-basis; de entrypoint start als root, chownt /data en dropt naar
+# de `git`-user, dus een vers named volume werkt zonder rechten-trucs).
+# Container-poorten: 22 (ingebouwde SSH-server) en 3000 (web).
+#
+# Poort: browser op host 80 → container 3000. Git-over-SSH is een tweede,
+# niet-browser dienst en krijgt daarom host 2222 → container 2222.
+#
+# Config: alles via FORGEJO__<sectie>__<SLEUTEL> env-vars; de image schrijft die
+# bij de start naar /data/gitea/conf/app.ini (environment-to-ini). Met
+# INSTALL_LOCK=true wordt de web-installatiewizard overgeslagen — de instance-
+# admin maak je daarna aan de command line aan (`forgejo admin user create
+# --admin …`), zodat de installatiepagina nooit publiek open staat.
+#
+# SECRET_KEY staat bewust NIET in dit bestand: Forgejo genereert er zelf een bij
+# de eerste start en bewaart die in app.ini in het volume. Die sleutel hoort bij
+# de data-back-up (2FA-/Actions-secrets zijn ermee versleuteld).
+#
+# OIDC (Pocket ID): de authenticatiebron staat in de DB, niet in dit bestand.
+# Na de deploy aanmaken met
+#   forgejo admin auth add-oauth --provider openidConnect --name pocket \
+#     --key <client-id> --secret <client-secret> \
+#     --auto-discover-url https://pocket.xdio.nl/.well-known/openid-configuration \
+#     --scopes 'openid email profile'
+# met als callback https://forgejo.xdio.nl/user/oauth2/pocket/callback
+# (pkceEnabled=false — Forgejo stuurt geen PKCE). De [oauth2_client]-opties
+# hieronder zetten auto-registratie + account-linking op e-mail.
+#
+# Upgrade: image-tag ophogen (codeberg.org/forgejo/forgejo, bv. 17.0.x) en redeployen.
+# Bepaal de nieuwste release op codeberg.org/forgejo/-/packages/container/forgejo
+# of forgejo.org/download — niet via een registry-tags-API.
+name: forgejo
+
+services:
+  forgejo:
+    container_name: forgejo
+    image: codeberg.org/forgejo/forgejo:17.0.1
+    restart: unless-stopped
+    ports:
+      # browser-route: host 80 → container 3000
+      - "${APP_PORT:-80}:3000"
+      # git-over-SSH (tweede dienst): host 2222 → container 2222
+      - "${FORGEJO_SSH_PORT:-2222}:2222"
+    environment:
+      TZ: ${TZ:-Europe/Amsterdam}
+      # UID/GID van de databestanden in het volume
+      USER_UID: "1000"
+      USER_GID: "1000"
+      # publieke URL (Zoraxy-route); ROOT_URL MOET exact het browseradres zijn
+      FORGEJO__server__DOMAIN: forgejo.xdio.nl
+      FORGEJO__server__ROOT_URL: https://forgejo.xdio.nl/
+      FORGEJO__server__HTTP_PORT: "3000"
+      FORGEJO__server__SSH_DOMAIN: forgejo.xdio.nl
+      FORGEJO__server__SSH_PORT: "2222"
+      FORGEJO__server__SSH_LISTEN_PORT: "2222"
+      # geen installatiewizard; admin maak je aan de CLI aan
+      FORGEJO__security__INSTALL_LOCK: "true"
+      # registratie dicht: accounts komen via Pocket ID (of de admin)
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      # OIDC auto-registratie + account-linking op e-mail
+      FORGEJO__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
+      FORGEJO__oauth2_client__ACCOUNT_LINKING: "auto"
+      FORGEJO__oauth2_client__USERNAME: email
+    volumes:
+      # alle data: sqlite-db, repos, app.ini (incl. gegenereerde SECRET_KEY), LFS, avatars
+      - forgejo_data:/data
+    healthcheck:
+      # Forgejo heeft een echt health-endpoint (/api/healthz)
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  forgejo_data:
