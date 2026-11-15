@@ -24,9 +24,11 @@ services:
     container_name: headscale-repo-init
     restart: "no"
     # Eén regel (geen multiline `command: |`: dat wordt door de deploy-laag per regel
-    # als los argv-item doorgegeven). De repo-tarball komt van codeload (dynamisch, geen
-    # CDN-cache zoals raw.githubusercontent.com) en render.sh doet de rest.
-    entrypoint: ["/bin/sh", "-c", "wget -qO /tmp/r.tgz https://codeload.github.com/s4ndyp/compose/tar.gz/refs/heads/main && mkdir -p /tmp/compose-src && tar -xzf /tmp/r.tgz -C /tmp/compose-src && exec sh /tmp/compose-src/*/headscale/render.sh"]
+    # als los argv-item doorgegeven). De repo-tarball komt van codeload en wordt op een
+    # VASTGELEGD commit gepind (HEADSCALE_REF): raw.githubusercontent.com én codeload
+    # cachet enkele minuten, waardoor een verse deploy anders een oude template rendert.
+    # Zet HEADSCALE_REF na elke wijziging op de nieuwe commit-SHA (of laat hem leeg voor main).
+    entrypoint: ["/bin/sh", "-c", "wget -qO /tmp/r.tgz \"https://codeload.github.com/s4ndyp/compose/tar.gz/${HEADSCALE_REF:-refs/heads/main}\" && mkdir -p /tmp/compose-src && tar -xzf /tmp/r.tgz -C /tmp/compose-src && exec sh /tmp/compose-src/*/headscale/render.sh"]
     environment:
       BASE_URL: ${BASE_URL:-https://headplane.xdio.nl}
       COOKIE_SECRET: ${COOKIE_SECRET:-}
