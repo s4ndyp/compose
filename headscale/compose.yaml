@@ -23,10 +23,9 @@ services:
     image: alpine:3.20
     container_name: headscale-repo-init
     restart: "no"
-    # Eén regel: het renderscript staat in de repo (render.sh) en wordt gedownload.
-    # (Een multiline `command: |` wordt door de deploy-laag per regel als los argv-item
-    # doorgegeven, waardoor alleen `set` draait — vandaar deze vorm.)
-    entrypoint: ["/bin/sh", "-c", "wget -qO- https://raw.githubusercontent.com/s4ndyp/compose/main/headscale/render.sh | sh"]
+    # Eén regel (geen multiline `command: |`: dat wordt door de deploy-laag per regel
+    # als los argv-item doorgegeven). Templates + script komen uit de stackmap zelf.
+    entrypoint: ["/bin/sh", "/src/render.sh"]
     environment:
       BASE_URL: ${BASE_URL:-https://headplane.xdio.nl}
       COOKIE_SECRET: ${COOKIE_SECRET:-}
@@ -36,6 +35,11 @@ services:
     volumes:
       - headscale-config:/hs
       - headplane-config:/hp
+      # Templates + renderscript uit de (gesynchroniseerde) stackmap — altijd de verse versie.
+      - ./render.sh:/src/render.sh:ro
+      - ./headscale-config.template.yaml:/src/headscale-config.template.yaml:ro
+      - ./headplane-config.template.yaml:/src/headplane-config.template.yaml:ro
+      - ./acl.hujson:/src/acl.hujson:ro
 
   headscale:
     image: headscale/headscale:0.29.7
