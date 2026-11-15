@@ -20,7 +20,7 @@ if [ -n "${OIDC_CLIENT_ID:-}" ]; then
       -e "s|__OIDC_CLIENT_SECRET__|${OIDC_CLIENT_SECRET}|g" /hs/hs.tmpl > /hs/config.yaml
   OE=true
 else
-  sed '/# >>>OIDC/,/# <<<OIDC/d' /hs/hs.tmpl > /hs/config.yaml
+  sed '/# OIDC-BEGIN/,/# OIDC-END/d' /hs/hs.tmpl > /hs/config.yaml
   OE=false
 fi
 

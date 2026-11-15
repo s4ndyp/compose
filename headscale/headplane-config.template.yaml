@@ -32,6 +32,8 @@ integration:
     socket: "unix:///var/run/docker.sock"
   kubernetes:
     enabled: false
+    # Verplicht veld in het schema, ook als de integratie uit staat.
+    pod_name: ""
   proc:
     enabled: false
 
