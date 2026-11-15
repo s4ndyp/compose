@@ -24,8 +24,10 @@ services:
     container_name: headscale-repo-init
     restart: "no"
     # Eén regel (geen multiline `command: |`: dat wordt door de deploy-laag per regel
-    # als los argv-item doorgegeven). Script + templates komen uit de stackmap zelf.
-    entrypoint: ["/bin/sh", "-c", "cd /src && exec sh ./render.sh"]
+    # als los argv-item doorgegeven). Het script wordt opgehaald met een cache-buster:
+    # raw.githubusercontent.com cachet ±5 min en zou anders een oude versie renderen.
+    # `$$(date +%s)` wordt door compose doorgegeven als `$(date +%s)`.
+    entrypoint: ["/bin/sh", "-c", "wget -qO- \"https://raw.githubusercontent.com/s4ndyp/compose/main/headscale/render.sh?cb=$$(date +%s)\" | sh"]
     environment:
       BASE_URL: ${BASE_URL:-https://headplane.xdio.nl}
       COOKIE_SECRET: ${COOKIE_SECRET:-}
@@ -53,7 +55,8 @@ services:
       - headscale-data:/var/lib/headscale
       - headscale-config:/etc/headscale
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      # De headscale-image is ko/distroless (Cmd /ko-app/headscale): geen shell, geen wget.
+      test: ["CMD", "/ko-app/headscale", "health"]
       interval: 30s
       timeout: 5s
       start_period: 20s
