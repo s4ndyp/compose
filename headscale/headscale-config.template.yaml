@@ -74,8 +74,8 @@ dns:
       - 1.1.1.1
     split: {}
   search_domains: []
-  extra_records: []
   # Headplane beheert de extra DNS-records via dit bestand (headscale kijkt er live naar).
+  # Let op: `dns.extra_records` en `extra_records_path` sluiten elkaar uit — alleen het pad.
   extra_records_path: /etc/headscale/extra_records.json
 
 unix_socket: /var/run/headscale/headscale.sock
