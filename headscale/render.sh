@@ -2,21 +2,18 @@
 # Rendert de headscale- en headplane-config uit de templates in deze repo naar de
 # twee config-volumes (/hs = headscale-config, /hp = headplane-config).
 #
-# Draait als eenmalige init-container bij elke deploy. De templates worden hier
-# gedownload (niet bind-mounted: de stack draait via Dockhand op een remote daemon,
-# dus relatieve paden in compose verwijzen naar de Dockhand-host, niet naar de LXC).
-# Elke download krijgt een cache-buster: raw.githubusercontent.com cachet anders
-# enkele minuten en dan rendert een verse deploy nog de oude template.
+# Draait als eenmalige init-container bij elke deploy. De repo-tarball wordt door de
+# entrypoint uit codeload.github.com gehaald (niet raw.githubusercontent.com: dat cachet
+# ±5 minuten en levert dan een verouderde template) en hier uitgepakt.
 # Env-variabelen komen uit de Dockhand-stackvariabelen (COOKIE_SECRET,
 # HEADSCALE_API_KEY, OIDC_*, BASE_URL).
 set -eu
 
-B="${TEMPLATE_BASE:-https://raw.githubusercontent.com/s4ndyp/compose/main/headscale}"
-C="cachebust=$(date +%s)-$$"
+SRC="${SRC:-$(ls -d /tmp/compose-src/*/headscale 2>/dev/null | head -1)}"
 
-wget -q -O /hs/hs.tmpl "$B/headscale-config.template.yaml?$C"
-wget -q -O /hp/hp.tmpl "$B/headplane-config.template.yaml?$C"
-wget -q -O /hs/acl.hujson "$B/acl.hujson?$C"
+cp "$SRC/headscale-config.template.yaml" /hs/hs.tmpl
+cp "$SRC/headplane-config.template.yaml" /hp/hp.tmpl
+cp "$SRC/acl.hujson" /hs/acl.hujson
 
 [ -f /hs/extra_records.json ] || printf '[]' > /hs/extra_records.json
 

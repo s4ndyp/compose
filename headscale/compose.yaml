@@ -24,10 +24,9 @@ services:
     container_name: headscale-repo-init
     restart: "no"
     # Eén regel (geen multiline `command: |`: dat wordt door de deploy-laag per regel
-    # als los argv-item doorgegeven). Het script wordt opgehaald met een cache-buster:
-    # raw.githubusercontent.com cachet ±5 min en zou anders een oude versie renderen.
-    # `$$(date +%s)` wordt door compose doorgegeven als `$(date +%s)`.
-    entrypoint: ["/bin/sh", "-c", "wget -qO- \"https://raw.githubusercontent.com/s4ndyp/compose/main/headscale/render.sh?cb=$$(date +%s)\" | sh"]
+    # als los argv-item doorgegeven). De repo-tarball komt van codeload (dynamisch, geen
+    # CDN-cache zoals raw.githubusercontent.com) en render.sh doet de rest.
+    entrypoint: ["/bin/sh", "-c", "wget -qO /tmp/r.tgz https://codeload.github.com/s4ndyp/compose/tar.gz/refs/heads/main && mkdir -p /tmp/compose-src && tar -xzf /tmp/r.tgz -C /tmp/compose-src && exec sh /tmp/compose-src/*/headscale/render.sh"]
     environment:
       BASE_URL: ${BASE_URL:-https://headplane.xdio.nl}
       COOKIE_SECRET: ${COOKIE_SECRET:-}
