@@ -1,0 +1,48 @@
+# rustdesk — RustDesk ID/relay-server (hbbs/hbbr) + lejianwen/rustdesk-api
+#
+# Draait in CT 142 (10.5.0.142) onder Dockhand. Host-netwerk, want de RustDesk-poorten
+# liggen semantisch vast (TCP 21114-21119 + UDP 21116) en hbbs moet de echte peer-IP's zien.
+# De data staat in bind-mounts op de plek van de oude native installatie, zodat terugvallen
+# op de systemd-units zonder datamigratie kan.
+name: rustdesk
+
+services:
+  hbbs:
+    image: rustdesk/rustdesk-server:1.1.16
+    container_name: rustdesk-hbbs
+    command: hbbs
+    network_mode: host
+    volumes:
+      - /var/lib/rustdesk-server:/root
+    restart: unless-stopped
+
+  hbbr:
+    image: rustdesk/rustdesk-server:1.1.16
+    container_name: rustdesk-hbbr
+    command: hbbr
+    network_mode: host
+    volumes:
+      - /var/lib/rustdesk-server:/root
+    restart: unless-stopped
+
+  api:
+    image: lejianwen/rustdesk-api:v2.7
+    container_name: rustdesk-api
+    network_mode: host
+    environment:
+      TZ: Europe/Amsterdam
+      RUSTDESK_API_RUSTDESK_ID_SERVER: 10.5.0.142:21116
+      RUSTDESK_API_RUSTDESK_RELAY_SERVER: 10.5.0.142:21117
+      RUSTDESK_API_RUSTDESK_API_SERVER: http://10.5.0.142:21114
+    volumes:
+      - /var/lib/rustdesk-api/data:/app/data
+      - /var/lib/rustdesk-api/conf:/app/conf
+      - /var/lib/rustdesk-api/resources:/app/resources
+      - /var/lib/rustdesk-server:/data:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:21114/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
