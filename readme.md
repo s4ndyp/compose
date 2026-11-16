@@ -36,6 +36,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | rtsp2onvif | RTSP→ONVIF UI + go2rtc | 80 → 80 (UI); go2rtc 1984/8554/8555 | go2rtc-image + inline-build UI, inline config |
 | snapzilla | SnapZilla (PB + web + analyzer) | 80 → 80 (web) | build vanaf GitHub, env `OPENROUTER_API_KEY`; PB/analyzer intern |
 | signoz | SigNoz observability (extern; UI + OTel-ingester + ClickHouse + Keeper + Postgres) | 80 → 8080 (UI); OTLP 4317/4318 | images gepind (`signoz v0.149.0`, `otel-collector v0.144.15`, clickhouse 25.12.5, postgres 16), 4 volumes; db/keeper/clickhouse intern |
+| supermemory-dashboard | Supermemory-dashboard (extern; webinterface voor de self-hosted Supermemory, SPA + nginx-`/api`-proxy) | 80 → 80 | image, env `SUPERMEMORY_UPSTREAM` (default de supermemory-instance op dezelfde LXC) |
 | supermarkey | SuperMarkey (nginx PWA) | 80 → 80 | image |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
@@ -184,3 +185,15 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   --auto-discover-url https://pocket.xdio.nl/.well-known/openid-configuration --scopes 'openid email profile'`
   met callback `https://forgejo.xdio.nl/user/oauth2/pocket/callback` (pkceEnabled=false). De app-host
   moet `pocket.xdio.nl` server-side kunnen resolven (CT-resolver via PVE, zie skill proxlan-dns-management).
+- **supermemory-dashboard**: externe (niet-s4ndyp) app — een fork van
+  `Ansh-Sonkusare/supermemory-dashboard`, de open-source web-UI die het dashboard herstelt dat
+  upstream uit de supermemory-binary haalde. De self-hosted binary is headless (alleen een
+  minimale welkomstpagina) en stuurt **geen CORS-headers**, dus de statische SPA draait achter
+  nginx die `/api/*` doorproxyt naar de supermemory-instance. Draait op **dezelfde LXC als de
+  supermemory-stack** (CT157, Dockhand-env 22): poort 80 is de UI, de API blijft op 6767.
+  De **API-key** voer je één keer in op de Settings-pagina (blijft in browser-localStorage;
+  de server bewaart niets) — hetzelfde `sm_…`-token uit `/data/api-key` in het volume
+  `supermemory-data`. Het gebruikt de legacy `/v3/documents|search`-routes die de binary
+  naast de `/ns/{namespace}`-routes ook bedient. Route: https://supermemory.xdio.nl
+  (Zoraxy → `10.5.0.157:80`, geen Pocket-ID-gate — bewust, het is een persoonlijke UI).
+  De repo publiceert de image `ghcr.io/s4ndyp/supermemory-dashboard:latest` via GitHub Actions.

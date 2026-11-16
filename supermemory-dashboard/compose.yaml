@@ -1,0 +1,27 @@
+# supermemory-dashboard — webinterface voor de self-hosted Supermemory-instance
+#
+# Start:  docker compose up -d
+# Draait op dezelfde LXC als de supermemory-stack (CT157, env 22): de browser opent
+# poort 80 van die host. nginx serveert de statische SPA en proxyt /api/* door naar
+# de supermemory-instance. Dat is nodig omdat de self-hosted binary GEEN
+# CORS-headers stuurt — zonder proxy kan de browser niet rechtstreeks naar :6767.
+#
+# De API-key voer je één keer in op de Settings-pagina (blijft in localStorage
+# van de browser); de server bewaart niets.
+#
+# name: vast — de projectnaam mag niet verschuiven bij een deploy vanuit Dockhand.
+name: supermemory-dashboard
+
+services:
+  dashboard:
+    image: ghcr.io/s4ndyp/supermemory-dashboard:latest
+    pull_policy: always
+    container_name: supermemory-dashboard
+    restart: unless-stopped
+    ports:
+      # Browser-toegang op host-poort 80 (norm van deze fleet)
+      - "${DASHBOARD_PORT:-80}:80"
+    environment:
+      # Waar nginx /api/* naartoe proxyt. Standaard de supermemory-instance op
+      # dezelfde LXC; overschrijfbaar als de stack ooit verhuist.
+      SUPERMEMORY_UPSTREAM: ${SUPERMEMORY_UPSTREAM:-http://10.5.0.157:6767}
