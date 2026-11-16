@@ -72,14 +72,15 @@ services:
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/passwd:/host/etc/passwd:ro
       - /etc/group:/host/etc/group:ro
-      # De Unraid-array zichtbaar maken voor de diskspace-collector. LET OP het pad: met een
-      # host-prefix (/host) stat Netdata elke mount op '<prefix>/root<mountpoint>', dus
-      # /mnt/user moet binnen de container op /host/root/mnt/user staan — een bind op /mnt:/mnt
-      # is onvoldoende (de collector ziet die mounts dan niet en chart alleen zijn eigen volume).
-      # rslave zodat schijven die Unraid later mount/uitzet zichtbaar blijven.
+      # De Unraid-array zichtbaar maken voor de diskspace-collector. Netdata's diskspace-plugin
+      # leest de mountlijst van de HOST uit '<prefix>/root/proc/1/mountinfo' en stat elke mount op
+      # '<prefix>/root<mountpoint>'. Daarvoor moet de host-root op /host/root staan (exact het
+      # patroon uit Netdata's docker-documentatie). Zonder deze regel zie je alleen het eigen
+      # container-volume en géén array-/schijfruimte-charts van de NAS.
+      # rslave: schijven die Unraid later mount of uitzet blijven zichtbaar.
       - type: bind
-        source: /mnt
-        target: /host/root/mnt
+        source: /
+        target: /host/root
         read_only: true
         bind:
           propagation: rslave
