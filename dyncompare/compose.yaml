@@ -17,7 +17,7 @@ services:
     container_name: dyncompare-sync
     restart: unless-stopped
     ports:
-      - "${DYNCOMPARE_SYNC_PORT:-8098}:8091"   # app neemt 80 in; sync is geen browser-UI maar peer-endpoint voor andere instanties
+      - "${DYNCOMPARE_SYNC_PORT:-8080}:8091"   # app neemt 80 in; sync is geen browser-UI maar peer-endpoint (o.a. Home Assistant) — poort 8080 NIET wijzigen
     environment:
       POCKETBASE_URL: http://app:8090
       TZ: Europe/Amsterdam

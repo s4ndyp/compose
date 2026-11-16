@@ -13,7 +13,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 |---|---|---|---|
 | assetvault | AssetVault (PocketBase) | 80 → 8090 | image, volume |
 | backai | BackAI (PocketBase + UI) | 80 → 8090 | env `BACKAI_AGENT_REGISTER_KEY` |
-| dyncompare | DynCompare (app + sync) | 80 → 8090; sync 8098 → 8091 | image x2, volume |
+| dyncompare | DynCompare (app + sync) | 80 → 8090; sync 8080 → 8091 | image x2, volume |
 | filehog | FileHog (PocketBase) | 80 → 8080 | image, volume |
 | fileshare | FileShare (Node) | 80 → 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
 | financepro | FinancePro (PocketBase) | 80 → 8090 | image, volume |
@@ -51,7 +51,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 ## Diensten die níét op 80 kunnen (binnen één stack)
 
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
-dyncompare `sync` (8098, peer-endpoint), onvif-explorer/rtsp2onvif `go2rtc` (1984 en
+dyncompare `sync` (8080, peer-endpoint), onvif-explorer/rtsp2onvif `go2rtc` (1984 en
 stream-poorten), wasmme `admin` (8080), webkey `preview` (5051), signoz `ingester`
 (4317/4318, OTLP-inname voor telemetry van andere hosts), headscale `headscale`
 (8080 — de control-poort waarop de Tailscale-clients verbinden; de web-UI van headplane
