@@ -72,6 +72,10 @@ services:
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/passwd:/host/etc/passwd:ro
       - /etc/group:/host/etc/group:ro
+      # de Unraid-array op dezelfde paden mounten (read-only), anders kan de diskspace-collector
+      # de vrije ruimte van /mnt/user en /mnt/disk* niet lezen — hij ziet dan alleen zijn eigen
+      # /var/lib/netdata. Zonder deze regel dus géén schijfruimte-charts van de NAS.
+      - /mnt:/mnt:ro
       # container-metrics van de Unraid-host
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
