@@ -27,6 +27,8 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
 | locator | Locator (PocketBase) | 80 → 8090 | image, volume |
 | netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards + eigen SABnzbd-collector) | 80 → 19999; 19999 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabelen NETDATA_STREAM_API_KEY + SABNZBD_APIKEY (Infisical map /netdata) |
+| netdata-child-ugnaz | Netdata child-agent op de Unraid-host UGNAZ (10.1.1.4) — streamt naar de parent | geen (stream-only) | image `v2.12.3` (gepind), 3 volumes, `SYS_PTRACE` + `pid: host`, **verplichte** stack-var NETDATA_STREAM_API_KEY (Infisical map /netdata), Dockhand-env 11 |
+| netdata-child-rnaz | Netdata child-agent op de Unraid-host RNAZ (10.1.1.2) — streamt naar de parent | geen (stream-only) | idem, maar **vereist eerst een Dockhand-env voor RNAZ** (Docker-API aanzetten op de NAS) |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
 | onvif-explorer | OnvifExplorer + go2rtc | 80 → 8080; go2rtc 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
@@ -132,6 +134,16 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   Retentie en web-ACL staan in `netdata.conf` (tiers 2GiB/1GiB/1GiB). Child toevoegen: zet in
   `/etc/netdata/stream.conf` van die host `[stream]` met `enabled = yes`,
   `destination = 10.5.0.<parent-vmid>:19999` en dezelfde `api key`.
+  **Child-agents die al klaarstaan**: `netdata-child-ugnaz` (Unraid-host UGNAZ, 10.1.1.4) en
+  `netdata-child-rnaz` (Unraid-host RNAZ, 10.1.1.2). Beide zijn dezelfde stack: netdata-agent als
+  Docker-container met `pid: host` + `/proc`, `/sys`, `/etc/{os-release,passwd,group}` en de
+  Docker-socket read-only gemount, **geen gepubliceerde poort** (de parent toont de node; één
+  80-mapping is hier dus niet nodig) en `hostname: ugnaz`/`rnaz` = de nodenaam in het dashboard.
+  De repo-init-container schrijft `netdata.conf` (web alleen op 127.0.0.1, `[db] mode = ram` —
+  de historie staat bij de parent) en `stream.conf` met de sleutel uit Infisical. Beheer via
+  Dockhand: env **11** voor UGNAZ; RNAZ heeft nog géén env (poort 2376 staat daar dicht) en
+  verschijnt pas als op die NAS de Docker-API wordt aangezet. Unraid zelf levert geen
+  netdata-integratie — de agent in een container is de route (geen CA-plugin nodig).
 - **headscale + headplane**: externe (niet-s4ndyp) app. Headscale is een self-hosted
   Tailscale-controlserver (WireGuard-mesh zonder Tailscale-account); headplane is de web-UI
   erboven (upstream image `ghcr.io/tale/headplane`, draait als root in de container).
