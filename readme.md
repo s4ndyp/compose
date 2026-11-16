@@ -26,7 +26,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
 | locator | Locator (PocketBase) | 80 → 8090 | image, volume |
-| netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards) | 80 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabele NETDATA_STREAM_API_KEY (Infisical map /netdata) |
+| netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards + eigen SABnzbd-collector) | 80 → 19999; 19999 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabelen NETDATA_STREAM_API_KEY + SABNZBD_APIKEY (Infisical map /netdata) |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
 | onvif-explorer | OnvifExplorer + go2rtc | 80 → 8080; go2rtc 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
@@ -112,6 +112,18 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   De API-sleutel staat niet in git: de template `netdata/stream.conf` bevat de placeholder
   `@NETDATA_STREAM_API_KEY@`, die de `repo-init`-container bij de deploy vervangt door de waarde van de
   stack-variabele NETDATA_STREAM_API_KEY uit Infisical (map `/netdata`, via `DOCKHAND_SECRET_SELECTOR`).
+  **Eigen collector `sabnzbd`**: `netdata/custom-plugins.d/sabnzbd.plugin` (Netdata external-plugin
+  line protocol, Python) leest de SABnzbd-API op CT123 (`10.5.0.123:7777`) en zet vijf charts onder
+  het dashboard-menu `sabnzbd`: `speed` (bytes/s), `queue` (nog te gaan / totale wachtrij),
+  `transfer` (**cumulatieve verzonden bytes** uit `mode=server_stats`, absolute teller — dit is de
+  reeks die de transferhistorie bewaart), `transfer_rate` (incremental, uit dezelfde teller) en
+  `downloaded` (vandaag / deze maand). De collector wordt niet door een image geleverd: hij staat in
+  het config-volume en Netdata vindt hem via `[directories] plugins = /usr/libexec/netdata/plugins.d
+  /etc/netdata/custom-plugins.d` plus `[plugins] sabnzbd = yes` in `netdata/netdata.conf`
+  (interval via `[plugin:sabnzbd] update every`). De API-sleutel van SABnzbd staat **niet** in de conf:
+  Dockhand injecteert `SABNZBD_APIKEY` uit Infisical map `/netdata` als omgevingsvariabele.
+  Uitzetten = `sabnzbd = no` in dat bestand en redeployen; debuggen met
+  `docker exec netdata /etc/netdata/custom-plugins.d/sabnzbd.plugin 5` of `docker logs netdata | grep sabnzbd`.
   **Lokaal dashboard = `http://<lxc-ip>/v3/`** (of https://netdata.xdio.nl/v3/): de root `/` toont de
   v2-onboarding-splash met een **Sign-in**-knop die naar app.netdata.cloud leidt — die overslaan
   (of op de splash "Skip and use the dashboard anonymously" kiezen; op `/v3/` is er geen splash).

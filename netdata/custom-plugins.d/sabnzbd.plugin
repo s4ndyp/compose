@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+# sabnzbd.plugin — Netdata external plugin (line protocol: src/plugins.d/README.md)
+#
+# Haalt queue/snelheid en de CUMULATIEVE verzonden bytes op uit de SABnzbd-API en zet die
+# als tijdreeksen in Netdata. Draait in de Netdata-container (CT144) en leest SABnzbd op
+# CT123 via het LAN.
+#
+# Waarom een eigen collector: Netdata heeft geen SABnzbd-integratie, en SABnzbd levert de
+# "transferred bytes" alléén via zijn eigen API (mode=server_stats) — die teller is de bron
+# voor de cumulatieve reeks, zodat de historie bewaard blijft los van SABnzbd-herstarts.
+#
+# Config: $NETDATA_USER_CONFIG_DIR/custom-plugins.d/sabnzbd.conf  (url + update_every)
+# De API-sleutel staat NIET in de conf of in git: die komt uit de omgevingsvariabele
+# SABNZBD_APIKEY, die Dockhand bij elke deploy uit Infisical (map /netdata) injecteert.
+import json
+import os
+import signal
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+CONF_PATHS = [
+    os.path.join(os.environ.get("NETDATA_USER_CONFIG_DIR", "/etc/netdata"), "custom-plugins.d", "sabnzbd.conf"),
+    "/etc/netdata/custom-plugins.d/sabnzbd.conf",
+]
+DEFAULTS = {"url": "http://10.5.0.123:7777", "apikey": "", "update_every": "5"}
+
+
+def load_conf():
+    cfg = dict(DEFAULTS)
+    for p in CONF_PATHS:
+        try:
+            with open(p) as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    cfg[k.strip().lower()] = v.strip()
+            break
+        except OSError:
+            continue
+    # Omgevingsvariabelen winnen: de sleutel komt uit de secret-provider, niet uit een bestand.
+    if os.environ.get("SABNZBD_URL"):
+        cfg["url"] = os.environ["SABNZBD_URL"].strip()
+    if os.environ.get("SABNZBD_APIKEY"):
+        cfg["apikey"] = os.environ["SABNZBD_APIKEY"].strip()
+    return cfg
+
+
+def out(line):
+    sys.stdout.write(line + "\n")
+
+
+def api(cfg, mode):
+    qs = urllib.parse.urlencode({"mode": mode, "output": "json", "apikey": cfg["apikey"]})
+    url = "%s/api?%s" % (cfg["url"].rstrip("/"), qs)
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode("utf-8", "replace"))
+
+
+def mib_to_bytes(value):
+    try:
+        return int(float(value) * 1048576)
+    except (TypeError, ValueError):
+        return 0
+
+
+def as_int(value):
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def main():
+    cfg = load_conf()
+    if not cfg["apikey"]:
+        # Zonder sleutel valt er niets te doen: melden en stoppen (Netdata herstart niet meer).
+        sys.stderr.write("sabnzbd.plugin: geen SABNZBD_APIKEY (env) en geen apikey in sabnzbd.conf\n")
+        out("DISABLE")
+        sys.exit(1)
+
+    interval = as_int(sys.argv[1]) if len(sys.argv) > 1 else as_int(cfg["update_every"])
+    if interval < 5:
+        # Netdata start plugins standaard elke seconde; SABnzbd niet zo vaak bevragen.
+        interval = max(5, as_int(cfg["update_every"]) or 5)
+
+    def chart(cid, title, units, dims, ctype="line", prio=60000):
+        out("CHART sabnzbd.%s '' '%s' '%s' sabnzbd sabnzbd.%s %s %d %d"
+            % (cid, title, units, cid, ctype, prio, interval))
+        for d in dims:
+            out("DIMENSION %s" % d)
+
+    chart("speed", "SABnzbd download snelheid", "bytes/s",
+          ["speed 'download' absolute 1 1"])
+    chart("queue", "SABnzbd wachtrij", "bytes",
+          ["remaining 'nog te gaan' absolute 1 1",
+           "size 'totale wachtrij' absolute 1 1"])
+    chart("transfer", "SABnzbd verzonden bytes (totaal, cumulatief)", "bytes",
+          ["total 'verzonden totaal' absolute 1 1"], prio=60001)
+    chart("transfer_rate", "SABnzbd verzonden bytes (snelheid uit teller)", "bytes/s",
+          ["downloaded 'download' incremental 1 1"], prio=60002)
+    chart("downloaded", "SABnzbd verzonden bytes per periode", "bytes",
+          ["today 'vandaag' absolute 1 1",
+           "month 'deze maand' absolute 1 1"], prio=60003)
+    sys.stdout.flush()
+
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
+
+    while True:
+        time.sleep(interval)
+        try:
+            q = api(cfg, "queue")["queue"]
+            s = api(cfg, "server_stats")
+        except Exception as exc:  # geen metrics deze ronde; Netdata vult het gat op
+            sys.stderr.write("sabnzbd.plugin: collectie mislukt: %r\n" % (exc,))
+            continue
+
+        out("BEGIN sabnzbd.speed")
+        out("SET speed = %d" % as_int(q.get("speed")))
+        out("END")
+        out("BEGIN sabnzbd.queue")
+        out("SET remaining = %d" % mib_to_bytes(q.get("mbleft")))
+        out("SET size = %d" % mib_to_bytes(q.get("mb")))
+        out("END")
+        out("BEGIN sabnzbd.transfer")
+        out("SET total = %d" % as_int(s.get("total")))
+        out("END")
+        out("BEGIN sabnzbd.transfer_rate")
+        out("SET downloaded = %d" % as_int(s.get("total")))
+        out("END")
+        out("BEGIN sabnzbd.downloaded")
+        out("SET today = %d" % as_int(s.get("day")))
+        out("SET month = %d" % as_int(s.get("month")))
+        out("END")
+        sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    main()

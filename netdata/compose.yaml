@@ -12,12 +12,21 @@
 # netdata-poort. Beide mappen naar container-19999; streaming is geen browser-dienst.
 #
 # Config: /etc/netdata is een named volume; de eenmalige container 'netdata-repo-init'
-# vult het met netdata.conf + stream.conf. Bestands-binds werken niet op een externe
-# Dockhand-daemon (de daemon kent de repo-checkout niet → docker maakt er een lege map
-# van; zie skill lxc-app-deploy). De API-sleutel staat NIET in git: de template
-# netdata/stream.conf bevat de placeholder @NETDATA_STREAM_API_KEY@, die de
-# init-container bij deploy vervangt door de waarde van de stack-variabele
-# NETDATA_STREAM_API_KEY (uit Infisical map /netdata via DOCKHAND_SECRET_SELECTOR).
+# vult het met netdata.conf + stream.conf + de eigen collector (custom-plugins.d/).
+# Bestands-binds werken niet op een externe Dockhand-daemon (de daemon kent de
+# repo-checkout niet → docker maakt er een lege map van; zie skill lxc-app-deploy).
+# Geheimen staan NIET in git: de template netdata/stream.conf bevat de placeholder
+# @NETDATA_STREAM_API_KEY@, die de init-container bij deploy vervangt door de waarde
+# van de stack-variabele NETDATA_STREAM_API_KEY. Beide sleutels (die +
+# SABNZBD_APIKEY) komen uit Infisical map /netdata via DOCKHAND_SECRET_SELECTOR=/netdata;
+# SABNZBD_APIKEY gaat als omgevingsvariabele rechtstreeks de netdata-container in (het
+# plugin-script leest hem daar; de conf op schijf bevat bewust géén sleutel).
+#
+# Eigen collector 'sabnzbd': leest de SABnzbd-API op CT123 (10.5.0.123:7777) en zet
+# snelheid, wachtrij en de CUMULATIEVE verzonden bytes (mode=server_stats) als tijdreeksen
+# in Netdata — zo blijft de transferhistorie bewaard. Aanzetten/uitschakelen gebeurt met de
+# [directories]/[plugins]-secties in netdata/netdata.conf; de plugin zelf staat in
+# netdata/custom-plugins.d/ en is met 'docker logs netdata | grep sabnzbd' te controleren.
 #
 # Child (agent) toevoegen op een andere host — in /etc/netdata/stream.conf van die host:
 #   [stream]
@@ -44,6 +53,7 @@ name: netdata
 services:
   # Eenmalige initialisatie van het config-volume (idempotent: bestaande bestanden
   # worden overschreven, netdata zelf doet daarna 'cp -an' en raakt ze niet aan).
+  # Vult netdata.conf + stream.conf + de eigen collector (custom-plugins.d/sabnzbd.*).
   netdata-repo-init:
     container_name: netdata-repo-init
     image: alpine:3.22
@@ -57,7 +67,14 @@ services:
         wget -q -O /tmp/stream.conf.tpl      "$$BASE/stream.conf"
         sed "s|@NETDATA_STREAM_API_KEY@|$$NETDATA_STREAM_API_KEY|" /tmp/stream.conf.tpl > /etc/netdata/stream.conf
         rm -f /tmp/stream.conf.tpl
-        grep -q . /etc/netdata/netdata.conf /etc/netdata/stream.conf
+        # eigen collector: script + conf (zonder sleutel; die komt uit de omgeving)
+        mkdir -p /etc/netdata/custom-plugins.d
+        wget -q -O /etc/netdata/custom-plugins.d/sabnzbd.plugin "$$BASE/custom-plugins.d/sabnzbd.plugin"
+        wget -q -O /etc/netdata/custom-plugins.d/sabnzbd.conf   "$$BASE/custom-plugins.d/sabnzbd.conf"
+        chmod 755 /etc/netdata/custom-plugins.d/sabnzbd.plugin
+        chmod 644 /etc/netdata/custom-plugins.d/sabnzbd.conf
+        grep -q . /etc/netdata/netdata.conf /etc/netdata/stream.conf \
+                 /etc/netdata/custom-plugins.d/sabnzbd.plugin /etc/netdata/custom-plugins.d/sabnzbd.conf
         echo "netdata config-initialisatie klaar"
     restart: "no"
     environment:
@@ -86,8 +103,12 @@ services:
       DISABLE_TELEMETRY: "1"
       DO_NOT_TRACK: "1"
       TZ: ${TZ:-Europe/Amsterdam}
+      # SABnzbd-API-sleutel voor de eigen collector: komt uit Infisical map /netdata
+      # (DOCKHAND_SECRET_SELECTOR), belandt hier als omgevingsvariabele en wordt door
+      # sabnzbd.plugin gelezen — dus nooit als bestand op schijf.
+      SABNZBD_APIKEY: ${SABNZBD_APIKEY:?Zet SABNZBD_APIKEY in Infisical map /netdata (of Dockhand Stack-Environment)}
     volumes:
-      # config (netdata.conf + stream.conf) — gevuld door netdata-repo-init
+      # config (netdata.conf + stream.conf + custom-plugins.d/) — gevuld door netdata-repo-init
       - netdata_config:/etc/netdata
       # database (metrics-historie van deze parent én van alle child-nodes)
       - netdata_lib:/var/lib/netdata
