@@ -72,10 +72,17 @@ services:
       - /etc/os-release:/host/etc/os-release:ro
       - /etc/passwd:/host/etc/passwd:ro
       - /etc/group:/host/etc/group:ro
-      # de Unraid-array op dezelfde paden mounten (read-only), anders kan de diskspace-collector
-      # de vrije ruimte van /mnt/user en /mnt/disk* niet lezen — hij ziet dan alleen zijn eigen
-      # /var/lib/netdata. Zonder deze regel dus géén schijfruimte-charts van de NAS.
-      - /mnt:/mnt:ro
+      # De Unraid-array zichtbaar maken voor de diskspace-collector. LET OP het pad: met een
+      # host-prefix (/host) stat Netdata elke mount op '<prefix>/root<mountpoint>', dus
+      # /mnt/user moet binnen de container op /host/root/mnt/user staan — een bind op /mnt:/mnt
+      # is onvoldoende (de collector ziet die mounts dan niet en chart alleen zijn eigen volume).
+      # rslave zodat schijven die Unraid later mount/uitzet zichtbaar blijven.
+      - type: bind
+        source: /mnt
+        target: /host/root/mnt
+        read_only: true
+        bind:
+          propagation: rslave
       # container-metrics van de Unraid-host
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
