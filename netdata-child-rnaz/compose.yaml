@@ -77,13 +77,15 @@ services:
       # '<prefix>/root<mountpoint>'. Daarvoor moet de host-root op /host/root staan (exact het
       # patroon uit Netdata's docker-documentatie). Zonder deze regel zie je alleen het eigen
       # container-volume en géén array-/schijfruimte-charts van de NAS.
-      # rslave: schijven die Unraid later mount of uitzet blijven zichtbaar.
+      # Let op: géén rslave-propagation — Unraid's '/' is geen shared/slave mount, en docker
+      # weigert dan met "path / is mounted on / but it is not a shared or slave mount". Een
+      # gewone read-only bind is recursief, dus de bestaande array-mounts (/mnt/user, /mnt/disk*)
+      # komen mee. Zet Unraid later een schijf bij of uit, herstart dan deze container
+      # (stack opnieuw deployen) om die mount in de statistieken te zien.
       - type: bind
         source: /
         target: /host/root
         read_only: true
-        bind:
-          propagation: rslave
       # container-metrics van de Unraid-host
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
