@@ -1,0 +1,36 @@
+# beszel — Beszel hub (monitoring-dashboard, PocketBase-gebaseerd)
+#
+# Draait in CT 148 (10.5.0.148) onder Dockhand. Was een native installatie
+# (/opt/beszel/beszel serve + systemd-unit beszel-hub); de data staat nog op
+# dezelfde plek in een bind-mount, zodat terugvallen op de native unit zonder
+# datamigratie kan (unit staat nog op de CT, alleen gestopt/gedisabled).
+#
+# Poorten: 80 is de browser-route (homelab-conventie), 8090 blijft gepubliceerd
+# omdat ALLE agents op een vaste HUB_URL=http://10.5.0.148:8090 staan
+# (PVE-nodes, Unraid-flash, UniFi-appliances, HA-add-on). Die mapping is een
+# contract naar buitenstaanders — niet hernummeren.
+name: beszel
+
+services:
+  beszel:
+    # Gepind op de versie die native draaide (0.21.1) zodat de PocketBase-DB
+    # geen schema-migratie ondergaat; upgraden = tag ophogen in Dockhand.
+    image: henrygd/beszel:0.21.1
+    container_name: beszel
+    ports:
+      - "${BESZEL_PORT:-80}:8090"
+      - "8090:8090"
+    volumes:
+      # Zelfde map als de native installatie (incl. id_ed25519 = hub-key van de
+      # agents, data.db, universal tokens) — 1-op-1, geen kopie.
+      - /opt/beszel/beszel_data:/beszel_data
+    environment:
+      TZ: Europe/Amsterdam
+    # Het image is FROM scratch: geen shell/wget, health via de binary zelf.
+    healthcheck:
+      test: ["CMD", "/beszel", "health", "--url", "http://localhost:8090"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
