@@ -26,7 +26,6 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | ipey | iPEY (Node + nginx) | 80 → 80 | image |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
-| locator | Locator (PocketBase) | 80 → 8090 | image, volume |
 | netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards + eigen SABnzbd-collector) | 80 → 19999; 19999 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabelen NETDATA_STREAM_API_KEY + SABNZBD_APIKEY (Infisical map /netdata) |
 | netdata-child-ugnaz | Netdata child-agent op de Unraid-host UGNAZ (10.1.1.4) — streamt naar de parent | geen (stream-only) | image `v2.12.3` (gepind), 3 volumes, `SYS_PTRACE` + `pid: host`, **verplichte** stack-var NETDATA_STREAM_API_KEY (Infisical map /netdata), Dockhand-env 11 |
 | netdata-child-rnaz | Netdata child-agent op de Unraid-host RNAZ (10.1.1.2) — streamt naar de parent | geen (stream-only) | idem, maar **vereist eerst een Dockhand-env voor RNAZ** (Docker-API aanzetten op de NAS) |
