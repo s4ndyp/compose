@@ -19,6 +19,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | fileshare | FileShare (Node) | 80 → 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
 | financepro | FinancePro (PocketBase) | 80 → 8090 | image, volume |
 | forgejo | Forgejo (extern; self-hosted Git-service, Gitea-fork) | 80 → 3000; SSH 2222 → 2222 | image `codeberg.org/forgejo/forgejo:17.0.1` (gepind), volume `forgejo_data`, OIDC via Pocket ID (auth-bron in DB) |
+| forgejo-runner | Forgejo Actions runner (eigen LXC CT138; DinD + forgejo-runner 13.2.1 + docker:29-dind) | geen browser-poort | 3 volumes (runner_data/dind_data/docker_certs); **verplichte** stack-variabelen FORGEJO_RUNNER_UUID + FORGEJO_RUNNER_SECRET (Infisical map `/forgejo/runner`, selector `DOCKHAND_SECRET_SELECTOR`); labels ubuntu-latest/ubuntu-22.04/ubuntu-24.04/docker |
 | gpstag | GPSTag (PocketBase + hooks) | 80 → 8090 | image, volume |
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
 | headscale | Headscale + Headplane (extern; Tailscale-controlserver + web-UI) | 80 → 3000 (UI op `/admin`); control/API 8080 → 8080 | images gepind (`headscale 0.29.7`, `headplane 0.8.2`), 4 volumes; stack-variabelen COOKIE_SECRET/HEADSCALE_API_KEY/OIDC_* (Infisical map `/headscale`) |
