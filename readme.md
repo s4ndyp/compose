@@ -16,7 +16,6 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 | backai | BackAI (PocketBase + UI) | 80 → 8090 | env `BACKAI_AGENT_REGISTER_KEY` |
 | beszel | Beszel hub (extern; monitoring-dashboard voor de eigen agents, PocketBase) | 80 → 8090; 8090 → 8090 (agent-contract) | image `0.21.1` (gepind), bind-mount `/opt/beszel/beszel_data` (overgenomen van de native installatie) |
 | dyncompare | DynCompare (app + sync) | 80 → 8090; sync 8080 → 8091 | image x2, volume |
-| filehog | FileHog (PocketBase) | 80 → 8080 | image, volume |
 | fileshare | FileShare (Node) | 80 → 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
 | financepro | FinancePro (PocketBase) | 80 → 8090 | image, volume |
 | forgejo | Forgejo (extern; self-hosted Git-service, Gitea-fork) | 80 → 3000; SSH 2222 → 2222 | image `codeberg.org/forgejo/forgejo:17.0.1` (gepind), volume `forgejo_data`, OIDC via Pocket ID (auth-bron in DB) |
