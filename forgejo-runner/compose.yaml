@@ -1,0 +1,72 @@
+# forgejo-runner — Forgejo Actions runner (docker-in-docker) op eigen LXC (CT138, 10.5.0.138)
+#
+# Draait twee containers: `dind` (eigen dockerd) en `runner` (forgejo-runner 13.x).
+# De runner gebruikt DIND i.p.v. de docker-socket van de LXC, zodat workflows geen
+# toegang hebben tot de andere containers op de LXC.
+#
+# Waarom DinD + TLS + `network: host`:
+#  - job-containers worden door de DinD-daemon gemaakt en zitten in het netwerk
+#    BINNEN de dind-container; de servicenaam `dind` is daar niet resolvebaar.
+#    Met `container.network: host` delen ze de netns van de dind-container, waar
+#    de hostname `docker` naar 127.0.0.1 wijst -> DOCKER_HOST=tcp://docker:2376 werkt.
+#  - de docker-client-certificaten worden door de dind-entrypoint in /certs/client
+#    gezet en via `options: -v /certs/client:/certs/client` in de job-container gehangen.
+#
+# De runner-config (labels, netwerk, envs, verbinding) wordt bij de eerste start
+# gegenereerd uit `forgejo-runner generate-config` + sed; daarna blijft /data/config.yml
+# in het volume staan. De UUID + het token komen uit Infisical (map /forgejo/runner,
+# selector DOCKHAND_SECRET_SELECTOR) en staan NIET in dit bestand.
+#
+# Labels: ubuntu-latest / ubuntu-22.04 / ubuntu-24.04 -> catthehacker/ubuntu (GitHub-
+# runner-emulatie), docker -> docker:cli. Werkstromen in .forgejo/workflows of
+# .github/workflows worden automatisch gevonden; actions komen van data.forgejo.org.
+#
+# Registratie (eenmalig, op de Forgejo-host):
+#   forgejo forgejo-cli actions register --name forgejo-runner-lxc138 --secret-file <file>
+# Het antwoord (uuid) hoort in Infisical onder FORGEJO_RUNNER_UUID.
+#
+# Upgrade: image-tag ophogen (data.forgejo.org/forgejo/runner, docker:dind) en redeployen.
+name: forgejo-runner
+
+volumes:
+  runner_data:
+  dind_data:
+  docker_certs:
+
+services:
+  dind:
+    image: docker:29-dind
+    container_name: forgejo-runner-dind
+    hostname: docker
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - docker_certs:/certs
+      - dind_data:/var/lib/docker
+    networks:
+      default:
+        aliases:
+          - docker
+
+  runner:
+    image: data.forgejo.org/forgejo/runner:13.2.1
+    container_name: forgejo-runner
+    restart: unless-stopped
+    depends_on:
+      - dind
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
+      FORGEJO_INSTANCE_URL: ${FORGEJO_INSTANCE_URL:-https://forgejo.xdio.nl}
+      FORGEJO_RUNNER_UUID: ${FORGEJO_RUNNER_UUID:?FORGEJO_RUNNER_UUID ontbreekt - zet de Infisical-selector op /forgejo/runner}
+      FORGEJO_RUNNER_SECRET: ${FORGEJO_RUNNER_SECRET:?FORGEJO_RUNNER_SECRET ontbreekt - zet de Infisical-selector op /forgejo/runner}
+    volumes:
+      - runner_data:/data
+      - docker_certs:/certs:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - "set -e\nCFG=/data/config.yml\nif [ ! -s \"$$CFG\" ]; then\n  forgejo-runner generate-config > \"$$CFG\"\n  sed -i \\\n    -e '/A_TEST_ENV_NAME/d' \\\n    -e '/^  env_file: .env$$/d' \\\n    -e 's|  labels: \\[\\]|  labels: [\"ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest\",\"ubuntu-22.04:docker://ghcr.io/catthehacker/ubuntu:act-22.04\",\"ubuntu-24.04:docker://ghcr.io/catthehacker/ubuntu:act-24.04\",\"docker:docker://data.forgejo.org/oci/docker:cli\"]|' \\\n    -e 's|  network: \"\"|  network: host|' \\\n    -e 's|^  envs:$$|  envs:\\n    DOCKER_HOST: tcp://docker:2376\\n    DOCKER_CERT_PATH: /certs/client\\n    DOCKER_TLS_VERIFY: \"1\"|' \\\n    -e 's|^  options:$$|  options: -v /certs/client:/certs/client|' \\\n    -e 's|  valid_volumes: \\[\\]|  valid_volumes:\\n    - /certs/client|' \\\n    -e \"s|  connections:|  connections:\\n    forgejo:\\n      url: ${FORGEJO_INSTANCE_URL}\\n      uuid: ${FORGEJO_RUNNER_UUID}\\n      token: ${FORGEJO_RUNNER_SECRET}|\" \\\n    \"$$CFG\"\nfi\nexec forgejo-runner --config \"$$CFG\" daemon"
