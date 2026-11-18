@@ -11,6 +11,7 @@ De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`
 
 | Map | App | Host → intern | Gegevens |
 |---|---|---|---|
+| appflowy | AppFlowy Cloud (extern; self-hosted workspace-/notitie-app: Rust-API + Postgres + Redis + S3-opslag + web-client + admin-console) | 80 → 80 (eigen nginx) | images gepind (`appflowy_cloud`/`appflowy_worker`/`appflowy_search` 0.21.9, `gotrue` 0.20.6, `admin_frontend` 0.20.4, `appflowy_web` 0.20.15), **`pgsty/silo`** i.p.v. de verdwenen `minio/minio`-images, 4 volumes; db/redis/opslag blijven intern; verplichte stackvariabelen uit Infisical-map `/appflowy` + `APPFLOWY_CONF_REF` (commit-SHA) |
 | assetvault | AssetVault (PocketBase) | 80 → 8090 | image, volume |
 | backai | BackAI (PocketBase + UI) | 80 → 8090 | env `BACKAI_AGENT_REGISTER_KEY` |
 | beszel | Beszel hub (extern; monitoring-dashboard voor de eigen agents, PocketBase) | 80 → 8090; 8090 → 8090 (agent-contract) | image `0.21.1` (gepind), bind-mount `/opt/beszel/beszel_data` (overgenomen van de native installatie) |
