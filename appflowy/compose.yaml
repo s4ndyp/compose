@@ -15,10 +15,10 @@
 #     Docker Hub gehaald en quay.io weigert anonieme pulls. Daarom draait de
 #     onderhouden MinIO-fork pgsty/silo (zelfde S3-API, zelfde MINIO_*-variabelen,
 #     zelfde schijf-formaat), zodat de rest van de stack 1-op-1 upstream blijft.
-#   * appflowy_ai is tóch meegenomen: de AI-service praat met een OpenAI-compatibel
-#     endpoint en staat hier op OpenRouter (OPENAI_BASE_URL, key uit Infisical /appflowy).
-#     pgadmin en de Cloudflare-tunnel zijn optioneel en overgeslagen. appflowy_search
-#     levert het trefwoord-zoeken (OpenRouter kan geen embeddings leveren).
+#   * appflowy_ai staat UIT: de AI-routes van de cloud zijn licentie-gated (code 1067
+#     "You need a valid commercial license"), ongeacht de AI-key. pgadmin en de
+#     Cloudflare-tunnel zijn optioneel en overgeslagen; appflowy_search levert het
+#     trefwoord-zoeken. Zie references/appflowy.md voor het aanzetten mét licentie.
 #   * image-tags gepind op de actuele release in plaats van `latest`.
 #
 # Verplichte secrets komen uit Infisical-map /appflowy (Dockhand-stackvariabele
@@ -187,15 +187,18 @@ services:
       APPFLOWY_S3_BUCKET: appflowy
       APPFLOWY_S3_REGION: us-east-1
       APPFLOWY_S3_PRESIGNED_URL_ENDPOINT: ${APPFLOWY_BASE_URL:?}/minio-api
-      # Zoeken: appflowy_search doet het trefwoord-zoeken (zonder AI-key).
+      # Zoeken: appflowy_search doet het trefwoord-zoeken.
       APPFLOWY_SEARCH_SERVICE_URL: http://appflowy_search:4002
       APPFLOWY_SEARCH_REQUEST_TIMEOUT_SECS: "10"
-      # AI: de client praat via de cloud met de ai-service, die op zijn beurt een
-      # OpenAI-compatibel endpoint aanroept (hier OpenRouter via OPENAI_BASE_URL).
-      AI_ENABLED: "true"
-      AI_SERVER_HOST: ai
+      # AI staat UIT: de AI-routes van de cloud antwoorden met code 1067 ("You need a
+      # valid commercial license to use this feature") zolang er geen licentie is —
+      # ook met een werkende OpenAI/OpenRouter-key. De ai-service is daarom niet in de
+      # stack opgenomen; de keys staan wél klaar in Infisical /appflowy, zodat aanzetten
+      # later één service-blok + AI_ENABLED=true is (zie references/appflowy.md).
+      AI_ENABLED: "false"
+      AI_SERVER_HOST: ""
       AI_SERVER_PORT: "5001"
-      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:?}
+      AI_OPENAI_API_KEY: ""
       ASSEMBLYAI_API_KEY: ""
       ASSEMBLYAI_API_BASE: https://api.assemblyai.com/v2
       ASSEMBLYAI_STREAMING_API_BASE: https://streaming.assemblyai.com/v3
@@ -227,51 +230,6 @@ services:
       APPFLOWY_BASE_URL: http://appflowy_cloud:8000
     depends_on:
       gotrue:
-        condition: service_healthy
-      appflowy_cloud:
-        condition: service_healthy
-
-  # AI-service: roept een OpenAI-compatibel endpoint aan. Hier OpenRouter via
-  # OPENAI_BASE_URL; de key komt uit Infisical (/appflowy) en wordt gedeeld met Hermes.
-  # Let op: OpenRouter levert GEEN embeddings — semantisch zoeken blijft daarom uit
-  # (trefwoord-zoeken loopt via appflowy_search en werkt wel).
-  ai:
-    image: appflowyinc/appflowy_ai:0.21.9
-    restart: on-failure
-    environment:
-      AI_SERVER_PORT: "5001"
-      OPENAI_API_KEY: ${AI_OPENAI_API_KEY:?}
-      OPENAI_BASE_URL: ${AI_OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
-      DEFAULT_AI_MODEL: ${AI_DEFAULT_MODEL:-openai/gpt-4.1-mini}
-      DEFAULT_AI_COMPLETION_MODEL: ${AI_COMPLETION_MODEL:-openai/gpt-4.1-mini}
-      OPENAI_IMAGE_FALLBACK_MODEL: ${AI_DEFAULT_MODEL:-openai/gpt-4.1-mini}
-      # Andere providers bewust leeg: alleen OpenRouter is gekoppeld.
-      AZURE_OPENAI_API_KEY: ""
-      AZURE_OPENAI_ENDPOINT: ""
-      AZURE_OPENAI_API_VERSION: ""
-      ANTHROPIC_API_KEY: ""
-      GEMINI_API_KEY: ""
-      QWEN_API_KEY: ""
-      QWEN_BASE_URL: ""
-      DEEPSEEK_API_BASE: ""
-      AI_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?}@postgres:5432/postgres
-      AI_REDIS_URL: redis://redis:6379
-      AI_USE_MINIO: "true"
-      AI_MINIO_URL: http://minio:9000
-      AI_APPFLOWY_HOST: ${APPFLOWY_BASE_URL:?}
-      APPFLOWY_S3_ACCESS_KEY: ${APPFLOWY_S3_ACCESS_KEY:?}
-      APPFLOWY_S3_SECRET_KEY: ${APPFLOWY_S3_SECRET_KEY:?}
-      APPFLOWY_S3_BUCKET: appflowy
-      APPFLOWY_S3_REGION: us-east-1
-      APPFLOWY_GOTRUE_JWT_SECRET: ${GOTRUE_JWT_SECRET:?}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    depends_on:
-      postgres:
         condition: service_healthy
       appflowy_cloud:
         condition: service_healthy
