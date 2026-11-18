@@ -7,61 +7,45 @@ Starten: `cd <repo-naam> && docker compose up -d` (of via Dockhand als stack-pla
 altijd **host-poort 80**; de container-interne poort blijft zoals de app zelf luistert.
 De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
-De meeste stacks gebruiken de publieke GHCR-image `ghcr.io/s4ndyp/<repo>:latest`.
+> **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
+> SigNoz, Homarr, Pocket ID, Headscale, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
+> God's Eye View en de Forgejo-runner). `rtsp2onvif` staat hier nog als enige eigen app.
+>
+> De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
+> `quicknote`, `sync-ms`, `dyncompare`, `snapzilla`, `supermemory-dashboard`, `assetvault`, `backai`,
+> `notelight`, `onvif-explorer`, `supermarkey`, `tracknote`, `wasmme`, `webkey`, `webtool`, `rclone_ui`,
+> `ipey`) hebben hun `compose.yaml` in **hun eigen repo op Forgejo** (`forgejo.xdio.nl/sandman/<app>`),
+> met een image uit de eigen registry `forgejo.xdio.nl/sandman/<app>:latest`, gebouwd door
+> `.forgejo/workflows/build.yml` in die repo. Dockhand hangt die stacks aan de Forgejo-repo, niet meer aan deze.
 
 | Map | App | Host → intern | Gegevens |
 |---|---|---|---|
 | appflowy | AppFlowy Cloud (extern; self-hosted workspace-/notitie-app: Rust-API + Postgres + Redis + S3-opslag + web-client + admin-console) | 80 → 80 (eigen nginx) | images gepind (`appflowy_cloud`/`appflowy_worker`/`appflowy_search` 0.21.9, `gotrue` 0.20.6, `admin_frontend` 0.20.4, `appflowy_web` 0.20.15), **`pgsty/silo`** i.p.v. de verdwenen `minio/minio`-images, 4 volumes; db/redis/opslag blijven intern; verplichte stackvariabelen uit Infisical-map `/appflowy` + `APPFLOWY_CONF_REF` (commit-SHA) |
-| assetvault | AssetVault (PocketBase) | 80 → 8090 | image, volume |
-| backai | BackAI (PocketBase + UI) | 80 → 8090 | env `BACKAI_AGENT_REGISTER_KEY` |
 | beszel | Beszel hub (extern; monitoring-dashboard voor de eigen agents, PocketBase) | 80 → 8090; 8090 → 8090 (agent-contract) | image `0.21.1` (gepind), bind-mount `/opt/beszel/beszel_data` (overgenomen van de native installatie) |
-| dyncompare | DynCompare (app + sync) | 80 → 8090; sync 8080 → 8091 | image x2, volume |
-| fileshare | FileShare (Node) | 80 → 3000 | build vanaf GitHub, volume, `MAX_FILE_SIZE` |
-| financepro | FinancePro (PocketBase) | 80 → 8090 | image, volume |
 | forgejo | Forgejo (extern; self-hosted Git-service, Gitea-fork) | 80 → 3000; SSH 2222 → 2222 | image `codeberg.org/forgejo/forgejo:17.0.1` (gepind), volume `forgejo_data`, OIDC via Pocket ID (auth-bron in DB) |
 | forgejo-runner | Forgejo Actions runner (eigen LXC CT138; DinD + forgejo-runner 13.2.1 + docker:29-dind) | geen browser-poort | 3 volumes (runner_data/dind_data/docker_certs); **verplichte** stack-variabelen FORGEJO_RUNNER_UUID + FORGEJO_RUNNER_SECRET (Infisical map `/forgejo/runner`, selector `DOCKHAND_SECRET_SELECTOR`); labels ubuntu-latest/ubuntu-22.04/ubuntu-24.04/docker |
-| gpstag | GPSTag (PocketBase + hooks) | 80 → 8090 | image, volume |
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
 | headscale | Headscale + Headplane (extern; Tailscale-controlserver + web-UI) | 80 → 3000 (UI op `/admin`); control/API 8080 → 8080 | images gepind (`headscale 0.29.7`, `headplane 0.8.2`), 4 volumes; stack-variabelen COOKIE_SECRET/HEADSCALE_API_KEY/OIDC_* (Infisical map `/headscale`) |
-| iconator | Iconator (PocketBase) | 80 → 8080 | image, volume |
-| ipey | iPEY (Node + nginx) | 80 → 80 | image |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
-| listvault | ListVault (PocketBase) | 80 → 80 | image, volume |
 | netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards + eigen SABnzbd-collector) | 80 → 19999; 19999 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabelen NETDATA_STREAM_API_KEY + SABNZBD_APIKEY (Infisical map /netdata) |
 | netdata-child-ugnaz | Netdata child-agent op de Unraid-host UGNAZ (10.1.1.4) — streamt naar de parent | geen (stream-only) | image `v2.12.3` (gepind), 3 volumes, `SYS_PTRACE` + `pid: host`, **verplichte** stack-var NETDATA_STREAM_API_KEY (Infisical map /netdata), Dockhand-env 11 |
 | netdata-child-rnaz | Netdata child-agent op de Unraid-host RNAZ (10.1.1.2) — streamt naar de parent | geen (stream-only) | idem, maar **vereist eerst een Dockhand-env voor RNAZ** (Docker-API aanzetten op de NAS) |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
-| notelight | NoteLight (PocketBase) | 80 → 8080 | image, volume |
-| onvif-explorer | OnvifExplorer + go2rtc | 80 → 8080; go2rtc 1984 | image x2, env `GO2RTC_PUBLIC_URL` |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
-| quicknote | QuickNote capture-proxy | 80 → 80 | image, env `IGNIS_UPSTREAM` |
-| rclone_ui | Rclone UI (manager + rclone) | 80 → 8080 | image x2, fuse/privileged, volumes; rclone-rc alleen intern |
 | rtsp2onvif | RTSP→ONVIF UI + go2rtc | 80 → 80 (UI); go2rtc 1984/8554/8555 | go2rtc-image + inline-build UI, inline config |
-| snapzilla | SnapZilla (PB + web + analyzer) | 80 → 80 (web) | build vanaf GitHub, env `OPENROUTER_API_KEY`; PB/analyzer intern |
 | signoz | SigNoz observability (extern; UI + OTel-ingester + ClickHouse + Keeper + Postgres) | 80 → 8080 (UI); OTLP 4317/4318 | images gepind (`signoz v0.149.0`, `otel-collector v0.144.15`, clickhouse 25.12.5, postgres 16), 4 volumes; db/keeper/clickhouse intern |
-| supermemory-dashboard | Supermemory-dashboard (extern; webinterface voor de self-hosted Supermemory, SPA + nginx-`/api`-proxy) | 80 → 80 | image, env `SUPERMEMORY_UPSTREAM` (default de supermemory-instance op dezelfde LXC) |
-| supermarkey | SuperMarkey (nginx PWA) | 80 → 80 | image |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
-| sync-ms | Sync-MS (PocketBase + collector) | 80 → 8090 | image, volume, interval/retention |
-| tinynote | TinyNote (PocketBase) | 80 → 8080 | image, volume |
-| tracknote | TrackNote (PocketBase + UI) | 80 → 8090 | image, volume |
-| wallpaparr | Wallpaparr (PocketBase + donkere web-UI) | 80 → 8090 | image, volume |
-| wasmme | WasmMe (admin + publiek) | 80 → 80 (publiek); admin 8080 | image x2, gedeeld volume |
-| webkey | WebKey sitebouwer (Python) | 80 → 5050; preview 5051 | image `:beta`, 3 volumes |
-| webtool | WebTool (Node + PocketBase) | 80 → 3000 | image, volume |
 
 ## Diensten die níét op 80 kunnen (binnen één stack)
 
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
-dyncompare `sync` (8080, peer-endpoint), beszel `hub` (8090 — de vaste `HUB_URL` van
-álle agents, geen browserdienst), onvif-explorer/rtsp2onvif `go2rtc` (1984 en
-stream-poorten), wasmme `admin` (8080), webkey `preview` (5051), signoz `ingester`
-(4317/4318, OTLP-inname voor telemetry van andere hosts), headscale `headscale`
-(8080 — de control-poort waarop de Tailscale-clients verbinden; de web-UI van headplane
-houdt 80). Snapzilla's PocketBase
-en analyzer zijn alleen intern bereikbaar — de web-nginx proxyt `/api/` en `/_/` naar
-PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
+beszel `hub` (8090 — de vaste `HUB_URL` van álle agents, geen browserdienst),
+rtsp2onvif `go2rtc` (1984 en stream-poorten), signoz `ingester` (4317/4318, OTLP-inname
+voor telemetry van andere hosts), headscale `headscale` (8080 — de control-poort waarop de
+Tailscale-clients verbinden; de web-UI van headplane houdt 80) en dashbrr (8080, eigen opzet).
+De eigen apps houden hun eigen poortafspraken in hun eigen repo (o.a. dyncompare `sync` 8080,
+onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
 
 ## Overgeslagen repo's (geen draaibare server-app)
 
@@ -76,14 +60,12 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
 
 - **Audit nov 2026 (valkuilen externe daemon):** alle stacks gecontroleerd op file-binds, `service_healthy`
   zonder healthcheck, shell-command-interpretatie en `$`-interpolatie. Enige treffer: dashbrr `./data` →
-  omgezet naar named volume `dashbrr_data` (sessions.json gemigreerd). fileshare en rtsp2onvif bevatten
-  `build:`-services maar zijn níét als Dockhand-git-stack gedeployed — bij een latere Dockhand-deploy daar
-  `buildOnDeploy: true` zetten, anders faalt de pull op de lokale buildnamen.
+  omgezet naar named volume `dashbrr_data` (sessions.json gemigreerd). rtsp2onvif bevat nog een
+  `build:`-service en is niet als Dockhand-git-stack gedeployed — bij een latere deploy daar
+  `buildOnDeploy: true` zetten, anders faalt de pull op de lokale buildnaam.
 
-- **snapzilla**: geen publieke GHCR-image; web/analyzer worden vanaf GitHub gebouwd en
-  `pb_migrations` komen via een eenmalige `repo-init`-container in een volume.
-  Zet `OPENROUTER_API_KEY` in `.env` om AI-analyse werkend te krijgen.
-- **fileshare / rtsp2onvif**: bouwen eveneens vanaf GitHub (BuildKit git-context).
+- **rtsp2onvif**: bouwt de UI met een inline Dockerfile uit de GitHub-context (BuildKit); dit is de enige
+  eigen app die hier nog staat.
 - **gods-eye-view**: externe (niet-s4ndyp) app. Geen publieke image → de image wordt bij de deploy
   door BuildKit uit de GitHub-context gebouwd (Dockhand-git-stack vereist daarom `buildOnDeploy: true`).
   Dit is géén statische site: de Vite-dev-server draait óók de API-proxies en bemiddelt provider-keys.
@@ -98,11 +80,6 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
-- **wallpaparr**: PocketBase-wallpaperopslag met donkere web-UI; alle API-regels staan open
-  (geen login). Uploaden/taggen/filteren kan in de browser; de Windows/Unix-client
-  (`ghcr.io`-loos: losse binaries uit de repo-releases) haalt wallpapers op via
-  `/api/collections/wallpapers/records` en zet ze als achtergrond, met per-monitor
-  ondersteuning. Voor het toevoegen van wallpapers volstaat poort 80.
 - **signoz**: externe (niet-s4ndyp) app. Upstream distributed geen losse compose meer
   (deprecated sinds v0.130.0); deze stack is gegenereerd met `foundryctl forge`
   (Foundry, flavor=compose) en handmatig gepind op de image-tags uit de tabel.
@@ -220,15 +197,3 @@ PocketBase, dus alles wat de browser nodig heeft zit achter poort 80.
   --auto-discover-url https://pocket.xdio.nl/.well-known/openid-configuration --scopes 'openid email profile'`
   met callback `https://forgejo.xdio.nl/user/oauth2/pocket/callback` (pkceEnabled=false). De app-host
   moet `pocket.xdio.nl` server-side kunnen resolven (CT-resolver via PVE, zie skill proxlan-dns-management).
-- **supermemory-dashboard**: externe (niet-s4ndyp) app — een fork van
-  `Ansh-Sonkusare/supermemory-dashboard`, de open-source web-UI die het dashboard herstelt dat
-  upstream uit de supermemory-binary haalde. De self-hosted binary is headless (alleen een
-  minimale welkomstpagina) en stuurt **geen CORS-headers**, dus de statische SPA draait achter
-  nginx die `/api/*` doorproxyt naar de supermemory-instance. Draait op **dezelfde LXC als de
-  supermemory-stack** (CT157, Dockhand-env 22): poort 80 is de UI, de API blijft op 6767.
-  De **API-key** voer je één keer in op de Settings-pagina (blijft in browser-localStorage;
-  de server bewaart niets) — hetzelfde `sm_…`-token uit `/data/api-key` in het volume
-  `supermemory-data`. Het gebruikt de legacy `/v3/documents|search`-routes die de binary
-  naast de `/ns/{namespace}`-routes ook bedient. Route: https://supermemory.xdio.nl
-  (Zoraxy → `10.5.0.157:80`, geen Pocket-ID-gate — bewust, het is een persoonlijke UI).
-  De repo publiceert de image `ghcr.io/s4ndyp/supermemory-dashboard:latest` via GitHub Actions.
