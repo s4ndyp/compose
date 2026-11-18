@@ -9,7 +9,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 > **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
 > SigNoz, Homarr, Pocket ID, Headscale, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
-> God's Eye View en de Forgejo-runner). `rtsp2onvif` staat hier nog als enige eigen app.
+> God's Eye View en de Forgejo-runner).
 >
 > De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
 > `quicknote`, `sync-ms`, `dyncompare`, `snapzilla`, `supermemory-dashboard`, `assetvault`, `backai`,
@@ -32,7 +32,6 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | netdata-child-rnaz | Netdata child-agent op de Unraid-host RNAZ (10.1.1.2) — streamt naar de parent | geen (stream-only) | idem, maar **vereist eerst een Dockhand-env voor RNAZ** (Docker-API aanzetten op de NAS) |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
-| rtsp2onvif | RTSP→ONVIF UI + go2rtc | 80 → 80 (UI); go2rtc 1984/8554/8555 | go2rtc-image + inline-build UI, inline config |
 | signoz | SigNoz observability (extern; UI + OTel-ingester + ClickHouse + Keeper + Postgres) | 80 → 8080 (UI); OTLP 4317/4318 | images gepind (`signoz v0.149.0`, `otel-collector v0.144.15`, clickhouse 25.12.5, postgres 16), 4 volumes; db/keeper/clickhouse intern |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
@@ -41,7 +40,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
 beszel `hub` (8090 — de vaste `HUB_URL` van álle agents, geen browserdienst),
-rtsp2onvif `go2rtc` (1984 en stream-poorten), signoz `ingester` (4317/4318, OTLP-inname
+signoz `ingester` (4317/4318, OTLP-inname
 voor telemetry van andere hosts), headscale `headscale` (8080 — de control-poort waarop de
 Tailscale-clients verbinden; de web-UI van headplane houdt 80) en dashbrr (8080, eigen opzet).
 De eigen apps houden hun eigen poortafspraken in hun eigen repo (o.a. dyncompare `sync` 8080,
@@ -60,12 +59,8 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
 
 - **Audit nov 2026 (valkuilen externe daemon):** alle stacks gecontroleerd op file-binds, `service_healthy`
   zonder healthcheck, shell-command-interpretatie en `$`-interpolatie. Enige treffer: dashbrr `./data` →
-  omgezet naar named volume `dashbrr_data` (sessions.json gemigreerd). rtsp2onvif bevat nog een
-  `build:`-service en is niet als Dockhand-git-stack gedeployed — bij een latere deploy daar
-  `buildOnDeploy: true` zetten, anders faalt de pull op de lokale buildnaam.
+  omgezet naar named volume `dashbrr_data` (sessions.json gemigreerd).
 
-- **rtsp2onvif**: bouwt de UI met een inline Dockerfile uit de GitHub-context (BuildKit); dit is de enige
-  eigen app die hier nog staat.
 - **gods-eye-view**: externe (niet-s4ndyp) app. Geen publieke image → de image wordt bij de deploy
   door BuildKit uit de GitHub-context gebouwd (Dockhand-git-stack vereist daarom `buildOnDeploy: true`).
   Dit is géén statische site: de Vite-dev-server draait óók de API-proxies en bemiddelt provider-keys.
