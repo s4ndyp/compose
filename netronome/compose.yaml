@@ -50,13 +50,15 @@ services:
     cap_add:
       # raw sockets voor ping/mtr/traceroute (packetloss-monitor)
       - NET_RAW
-    sysctls:
-      # Zonder deze regel is ping voor de niet-root user in de image (uid 101) verboden:
-      # ping_group_range staat standaard op "65534 65534" en de NET_RAW-capability is
-      # geen *ambient* capability, dus /bin/ping zegt "permission denied (are you root?)".
-      # Netronome meet de latency vóór elke iperf3-test met ping -> zonder deze regel
-      # blijft die 0 ms. Ook de ping-/packet-loss-metingen van de monitor gebruiken /bin/ping.
-      net.ipv4.ping_group_range: "0 2147483647"
+    # Ping/mtr/traceroute en de packetloss-monitor draaien als root. De image zet
+    # USER netronome (uid 101) en dan faalt /bin/ping met "permission denied (are you
+    # root?)": NET_RAW is geen *ambient* capability en de ping-binary heeft geen
+    # file-capability. Netronome meet de latency vóór elke iperf3-test met ping, dus
+    # zonder root blijft die 0 ms.
+    # NB: 'sysctls: net.ipv4.ping_group_range' werkt hier NIET — deze LXC (guest,
+    # ongeprivilegieerd) weigert de write: "failed to write sysctl ... permission denied",
+    # waarna de container niet meer start. Vandaar root i.p.v. de sysctl.
+    user: "0:0"
     healthcheck:
       # er is geen API-health-endpoint; de SPA op / antwoordt 200 als de server leeft
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7575/ >/dev/null || exit 1"]
