@@ -64,7 +64,9 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
   Grafana heeft **native Pocket ID-OIDC** (generic OAuth, client 'Grafana', callback
   `https://grafana.xdio.nl/login/generic_oauth`; client-id/secret uit dezelfde Infisical-map),
   de lokale admin-login blijft als break-glass. Prometheus heeft géén auth van zichzelf en blijft
-  daarom LAN-only (geen gate).
+  daarom LAN-only (geen gate). Als scrape-target loopt er een derde job mee: **wg-easy**
+  (CT170, `http://10.5.0.170:51821/metrics/prometheus`, Bearer-token uit Infisical — aanzetten/roteren in
+  wg-easy → Admin → General), met het WireGuard-dashboard 21733 in Grafana.
 
 - **Audit nov 2026 (valkuilen externe daemon):** alle stacks gecontroleerd op file-binds, `service_healthy`
   zonder healthcheck, shell-command-interpretatie en `$`-interpolatie. Enige treffer: dashbrr `./data` →
