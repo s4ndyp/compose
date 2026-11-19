@@ -8,7 +8,7 @@ altijd **host-poort 80**; de container-interne poort blijft zoals de app zelf lu
 De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 > **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
-> SigNoz, Homarr, Pocket ID, Headscale, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
+> Homarr, Pocket ID, Headscale, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
 > God's Eye View en de Forgejo-runner).
 >
 > De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
@@ -32,7 +32,6 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | netdata-child-rnaz | Netdata child-agent op de Unraid-host RNAZ (10.1.1.2) — streamt naar de parent | geen (stream-only) | idem, maar **vereist eerst een Dockhand-env voor RNAZ** (Docker-API aanzetten op de NAS) |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
-| signoz | SigNoz observability (extern; UI + OTel-ingester + ClickHouse + Keeper + Postgres) | 80 → 8080 (UI); OTLP 4317/4318 | images gepind (`signoz v0.149.0`, `otel-collector v0.144.15`, clickhouse 25.12.5, postgres 16), 4 volumes; db/keeper/clickhouse intern |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
 
@@ -40,8 +39,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
 beszel `hub` (8090 — de vaste `HUB_URL` van álle agents, geen browserdienst),
-signoz `ingester` (4317/4318, OTLP-inname
-voor telemetry van andere hosts), headscale `headscale` (8080 — de control-poort waarop de
+headscale `headscale` (8080 — de control-poort waarop de
 Tailscale-clients verbinden; de web-UI van headplane houdt 80) en dashbrr (8080, eigen opzet).
 De eigen apps houden hun eigen poortafspraken in hun eigen repo (o.a. dyncompare `sync` 8080,
 onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
@@ -75,12 +73,6 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
-- **signoz**: externe (niet-s4ndyp) app. Upstream distributed geen losse compose meer
-  (deprecated sinds v0.130.0); deze stack is gegenereerd met `foundryctl forge`
-  (Foundry, flavor=compose) en handmatig gepind op de image-tags uit de tabel.
-  Upgrade via nieuwe Foundry-forge of tags rechtstreeks ophogen. Minimaal 8 GB RAM
-  op de LXC (ClickHouse + Postgres + Keeper + collector). Eerste login: open `http://<lxc-ip>/`
-  en registreer de instance-admin vóór eerste gebruik.
 - **netdata**: externe (niet-s4ndyp) app; draait als metrics-PARENT (centralisatiepunt) waarop je
   later child-agents laat streamen. Container-intern 19999; gepubliceerd op host 80 (browser-route) én
   host 19999 (streaming-endpoint voor child-agents — de netdata-standaardpoort, geen HTTP dus geen
