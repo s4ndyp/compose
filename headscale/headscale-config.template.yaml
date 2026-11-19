@@ -7,15 +7,16 @@
 # Let op: headplane kan deze config ook aanpassen (netwerk-instellingen in de UI);
 # een nieuwe deploy overschrijft dat weer met deze template.
 
-server_url: https://headscale.xdio.nl
+server_url: https://tailscale.sandyp.nl:8443
 listen_addr: 0.0.0.0:8080
 metrics_listen_addr: 0.0.0.0:9090
 grpc_listen_addr: 0.0.0.0:50443
 grpc_allow_insecure: false
 
-# X-Forwarded-For / X-Real-IP van de proxy's vertrouwen (Zoraxy + LAN + docker-bridge).
+# X-Forwarded-For / X-Real-IP van de proxy's vertrouwen (Zoraxy intern + DMZ + LAN + docker-bridge).
 trusted_proxies:
   - 10.1.2.250/32
+  - 10.10.2.250/32
   - 10.5.0.0/16
   - 172.16.0.0/12
 
