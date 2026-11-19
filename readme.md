@@ -60,8 +60,11 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
   **inline** in de compose (scrape-config én een voorgprovisioneerde Prometheus-datasource in Grafana);
   een target toevoegen = scrape-config hier aanpassen + redeploy. Het Grafana-admin-wachtwoord staat in
   Infisical-map `/prometheus_grafana` (gestuurd door de stackvariabele
-  `DOCKHAND_SECRET_SELECTOR`).
-  Prometheus bewaart 30 dagen in `prometheus_data`.
+  `DOCKHAND_SECRET_SELECTOR`). Prometheus bewaart 30 dagen in `prometheus_data`.
+  Grafana heeft **native Pocket ID-OIDC** (generic OAuth, client 'Grafana', callback
+  `https://grafana.xdio.nl/login/generic_oauth`; client-id/secret uit dezelfde Infisical-map),
+  de lokale admin-login blijft als break-glass. Prometheus heeft géén auth van zichzelf en blijft
+  daarom LAN-only (geen gate).
 
 - **Audit nov 2026 (valkuilen externe daemon):** alle stacks gecontroleerd op file-binds, `service_healthy`
   zonder healthcheck, shell-command-interpretatie en `$`-interpolatie. Enige treffer: dashbrr `./data` →
