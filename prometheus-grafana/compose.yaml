@@ -121,6 +121,19 @@ configs:
           static_configs:
             - targets: ["grafana:3000"]
 
+        # wg-easy (CT170, WireGuard-testtunnel homelab <-> ouders): /metrics/prometheus
+        # staat achter een Bearer-token uit Infisical (/prometheus_grafana, via de
+        # secret-provider; het token is dezelfde waarde als WG_EASY_METRICS_PASSWORD
+        # in /wg-easy). Aanzetten/roteren doe je in wg-easy → Admin → General.
+        - job_name: wg-easy
+          metrics_path: /metrics/prometheus
+          scrape_interval: 30s
+          authorization:
+            type: Bearer
+            credentials: ${WG_EASY_METRICS_PASSWORD:?zet WG_EASY_METRICS_PASSWORD in Infisical /prometheus_grafana}
+          static_configs:
+            - targets: ["10.5.0.170:51821"]
+
   grafana_datasource:
     content: |
       apiVersion: 1
