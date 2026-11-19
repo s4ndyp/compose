@@ -69,6 +69,23 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # --- Pocket ID (OIDC) --- native SSO; de lokale admin-login blijft als break-glass
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: Pocket ID
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: ${GRAFANA_OIDC_CLIENT_ID:?zet GRAFANA_OIDC_CLIENT_ID in Infisical /prometheus_grafana}
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OIDC_CLIENT_SECRET:?zet GRAFANA_OIDC_CLIENT_SECRET in Infisical /prometheus_grafana}
+      GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://pocket.xdio.nl/authorize
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://pocket.xdio.nl/api/oidc/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://pocket.xdio.nl/api/oidc/userinfo
+      GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH: email
+      GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: email
+      GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH: name
+      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
+      # bestaande lokale admin koppelen op zelfde e-mailadres
+      GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: "true"
+      # Pocket ID kent geen rollen-claim voor deze client: SSO-gebruikers worden Admin
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Admin
     depends_on:
       prometheus:
         condition: service_healthy
