@@ -27,9 +27,6 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
 | headscale | Headscale + Headplane (extern; Tailscale-controlserver + web-UI) | 80 → 3000 (UI op `/admin`); control/API 8080 → 8080 | images gepind (`headscale 0.29.7`, `headplane 0.8.2`), 4 volumes; stack-variabelen COOKIE_SECRET/HEADSCALE_API_KEY/OIDC_* (Infisical map `/headscale`) |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
-| netdata | Netdata parent (extern; metrics-centralisatiepunt + eigen dashboards + eigen SABnzbd-collector) | 80 → 19999; 19999 → 19999 | image `v2.12.3` (gepind), 3 volumes, **verplichte** stack-variabelen NETDATA_STREAM_API_KEY + SABNZBD_APIKEY (Infisical map /netdata) |
-| netdata-child-ugnaz | Netdata child-agent op de Unraid-host UGNAZ (10.1.1.4) — streamt naar de parent | geen (stream-only) | image `v2.12.3` (gepind), 3 volumes, `SYS_PTRACE` + `pid: host`, **verplichte** stack-var NETDATA_STREAM_API_KEY (Infisical map /netdata), Dockhand-env 11 |
-| netdata-child-rnaz | Netdata child-agent op de Unraid-host RNAZ (10.1.1.2) — streamt naar de parent | geen (stream-only) | idem, maar **vereist eerst een Dockhand-env voor RNAZ** (Docker-API aanzetten op de NAS) |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
@@ -73,43 +70,6 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
-- **netdata**: externe (niet-s4ndyp) app; draait als metrics-PARENT (centralisatiepunt) waarop je
-  later child-agents laat streamen. Container-intern 19999; gepubliceerd op host 80 (browser-route) én
-  host 19999 (streaming-endpoint voor child-agents — de netdata-standaardpoort, geen HTTP dus geen
-  browser-dienst). Die 19999 moet vanaf de child-hosts bereikbaar blijven (niet dichtzetten).
-  De API-sleutel staat niet in git: de template `netdata/stream.conf` bevat de placeholder
-  `@NETDATA_STREAM_API_KEY@`, die de `repo-init`-container bij de deploy vervangt door de waarde van de
-  stack-variabele NETDATA_STREAM_API_KEY uit Infisical (map `/netdata`, via `DOCKHAND_SECRET_SELECTOR`).
-  **Eigen collector `sabnzbd`**: `netdata/custom-plugins.d/sabnzbd.plugin` (Netdata external-plugin
-  line protocol, Python) leest de SABnzbd-API op CT123 (`10.5.0.123:7777`) en zet vijf charts onder
-  het dashboard-menu `sabnzbd`: `speed` (bytes/s), `queue` (nog te gaan / totale wachtrij),
-  `transfer` (**cumulatieve verzonden bytes** uit `mode=server_stats`, absolute teller — dit is de
-  reeks die de transferhistorie bewaart), `transfer_rate` (incremental, uit dezelfde teller) en
-  `downloaded` (vandaag / deze maand). De collector wordt niet door een image geleverd: hij staat in
-  het config-volume en Netdata vindt hem via `[directories] plugins = /usr/libexec/netdata/plugins.d
-  /etc/netdata/custom-plugins.d` plus `[plugins] sabnzbd = yes` in `netdata/netdata.conf`
-  (interval via `[plugin:sabnzbd] update every`). De API-sleutel van SABnzbd staat **niet** in de conf:
-  Dockhand injecteert `SABNZBD_APIKEY` uit Infisical map `/netdata` als omgevingsvariabele.
-  Uitzetten = `sabnzbd = no` in dat bestand en redeployen; debuggen met
-  `docker exec netdata /etc/netdata/custom-plugins.d/sabnzbd.plugin 5` of `docker logs netdata | grep sabnzbd`.
-  **Lokaal dashboard = `http://<lxc-ip>/v3/`** (of https://netdata.xdio.nl/v3/): de root `/` toont de
-  v2-onboarding-splash met een **Sign-in**-knop die naar app.netdata.cloud leidt — die overslaan
-  (of op de splash "Skip and use the dashboard anonymously" kiezen; op `/v3/` is er geen splash).
-  Alles blijft lokaal: geen claim-token (cloud.d leeg → ACLK uit), DISABLE_TELEMETRY/DO_NOT_TRACK aan,
-  en de browser-toegang op het domein loopt via de Pocket ID-gate.
-  Retentie en web-ACL staan in `netdata.conf` (tiers 2GiB/1GiB/1GiB). Child toevoegen: zet in
-  `/etc/netdata/stream.conf` van die host `[stream]` met `enabled = yes`,
-  `destination = 10.5.0.<parent-vmid>:19999` en dezelfde `api key`.
-  **Child-agents die al klaarstaan**: `netdata-child-ugnaz` (Unraid-host UGNAZ, 10.1.1.4) en
-  `netdata-child-rnaz` (Unraid-host RNAZ, 10.1.1.2). Beide zijn dezelfde stack: netdata-agent als
-  Docker-container met `pid: host` + `/proc`, `/sys`, `/etc/{os-release,passwd,group}` en de
-  Docker-socket read-only gemount, **geen gepubliceerde poort** (de parent toont de node; één
-  80-mapping is hier dus niet nodig) en `hostname: ugnaz`/`rnaz` = de nodenaam in het dashboard.
-  De repo-init-container schrijft `netdata.conf` (web alleen op 127.0.0.1, `[db] mode = ram` —
-  de historie staat bij de parent) en `stream.conf` met de sleutel uit Infisical. Beheer via
-  Dockhand: env **11** voor UGNAZ; RNAZ heeft nog géén env (poort 2376 staat daar dicht) en
-  verschijnt pas als op die NAS de Docker-API wordt aangezet. Unraid zelf levert geen
-  netdata-integratie — de agent in een container is de route (geen CA-plugin nodig).
 - **headscale + headplane**: externe (niet-s4ndyp) app. Headscale is een self-hosted
   Tailscale-controlserver (WireGuard-mesh zonder Tailscale-account); headplane is de web-UI
   erboven (upstream image `ghcr.io/tale/headplane`, draait als root in de container).
