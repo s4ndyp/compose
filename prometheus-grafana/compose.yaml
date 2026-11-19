@@ -15,7 +15,7 @@
 # Wachtwoord: GF_ADMIN_PASSWORD komt uit de Infisical-map `/prometheus_grafana`
 # (Dockhand secret-provider, gestuurd door de stackvariabele
 # DOCKHAND_SECRET_SELECTOR). Zonder die sleutel faalt de deploy bewust.
-name: prometheus_grafana
+name: prometheus-grafana
 
 services:
   prometheus:

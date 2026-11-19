@@ -29,7 +29,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
-| prometheus_grafana | Prometheus + Grafana (extern; metrics-TSDB + dashboard-UI, samen in één stack/LXC) | 80 → 3000 (Grafana); Prometheus 9090 → 9090 | images gepind (`prom/prometheus v3.16.0`, `grafana/grafana 13.3.1`), 2 volumes, **inline configs** (scrape-config + voorgprovisioneerde Prometheus-datasource), verplichte stackvariabele `GF_ADMIN_PASSWORD` (Infisical map `/prometheus_grafana`) |
+| prometheus-grafana | Prometheus + Grafana (extern; metrics-TSDB + dashboard-UI, samen in één stack/LXC) | 80 → 3000 (Grafana); Prometheus 9090 → 9090 | images gepind (`prom/prometheus v3.16.0`, `grafana/grafana 13.3.1`), 2 volumes, **inline configs** (scrape-config + voorgprovisioneerde Prometheus-datasource), verplichte stackvariabele `GF_ADMIN_PASSWORD` (Infisical map `/prometheus_grafana`) |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
 
@@ -38,7 +38,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
 beszel `hub` (8090 — de vaste `HUB_URL` van álle agents, geen browserdienst),
 headscale `headscale` (8080 — de control-poort waarop de
-Tailscale-clients verbinden; de web-UI van headplane houdt 80), prometheus_grafana `prometheus` (9090 — eigen
+Tailscale-clients verbinden; de web-UI van headplane houdt 80), prometheus-grafana `prometheus` (9090 — eigen
 domein `prometheus.xdio.nl`, Grafana houdt 80) en dashbrr (8080, eigen opzet).
 De eigen apps houden hun eigen poortafspraken in hun eigen repo (o.a. dyncompare `sync` 8080,
 onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
@@ -54,7 +54,7 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
 
 ## Opmerkingen
 
-- **prometheus_grafana**: externe (niet-s4ndyp) apps in één stack, want ze horen bij elkaar: Grafana
+- **prometheus-grafana**: externe (niet-s4ndyp) apps in één stack, want ze horen bij elkaar: Grafana
   haalt zijn metrics bij `http://prometheus:9090` over het compose-netwerk. Twee routes: `grafana.xdio.nl` →
   `<lxc>:80` en `prometheus.xdio.nl` → `<lxc>:9090` (Zoraxy + AdGuard-rewrite, beide). Configs staan
   **inline** in de compose (scrape-config én een voorgprovisioneerde Prometheus-datasource in Grafana);
