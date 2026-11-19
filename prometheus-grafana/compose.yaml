@@ -134,6 +134,19 @@ configs:
           static_configs:
             - targets: ["10.5.0.170:51821"]
 
+        # Syncthing heeft een native /metrics op de GUI-poort (8384), geen exporter nodig.
+        # Twee instanties: CT139 'sync-naz' (syncthing.xdio.nl) en 10.5.0.134 (ignis-syncthing.xdio.nl).
+        - job_name: syncthing
+          static_configs:
+            - targets: ["10.5.0.139:8384"]
+              labels:
+                instance: syncthing-naz
+        - job_name: syncthing-ignis
+          static_configs:
+            - targets: ["10.5.0.134:8384"]
+              labels:
+                instance: syncthing-ignis
+
   grafana_datasource:
     content: |
       apiVersion: 1
