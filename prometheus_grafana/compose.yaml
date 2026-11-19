@@ -1,0 +1,118 @@
+# prometheus_grafana — Prometheus (metrics) + Grafana (dashboards) in één stack op één LXC
+#
+# Beide diensten zitten in hetzelfde compose-netwerk: Grafana leest de metrics via
+# http://prometheus:9090 (interne naam, geen host-poort nodig).
+#
+# Poorten: 80 = Grafana (browser-route, homelab-conventie), 9090 = Prometheus.
+# Prometheus krijgt een eigen domein (prometheus.xdio.nl) achter Zoraxy; een tweede
+# 80-mapping kan niet, dus die route loopt via host-poort 9090.
+#
+# Configs staan INLINE (`configs:` met `content:`): een Dockhand-git-stack draait
+# compose op de Dockhand-host terwijl de docker-daemon op deze LXC staat, dus
+# relatieve `./bestand`-binds zouden daar op een lege map uitkomen. Inline configs
+# reizen mee met de stack; een config-wijziging = dit bestand aanpassen + redeploy.
+#
+# Wachtwoord: GF_ADMIN_PASSWORD komt uit de Infisical-map `/prometheus_grafana`
+# (Dockhand secret-provider, gestuurd door de stackvariabele
+# DOCKHAND_SECRET_SELECTOR). Zonder die sleutel faalt de deploy bewust.
+name: prometheus_grafana
+
+services:
+  prometheus:
+    # Metrics-server + TSDB. v3.x: OTLP-endpoints standaard aan.
+    image: prom/prometheus:v3.16.0
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      # juiste links/redirects wanneer de UI via https://prometheus.xdio.nl loopt
+      - --web.external-url=https://prometheus.xdio.nl
+      # POST /-/reload (config herladen zonder herstart)
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      # TSDB (30 dagen retentie) — named volume, groeit mee met het aantal targets
+      - prometheus_data:/prometheus
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    environment:
+      TZ: Europe/Amsterdam
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.3.1
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT:-80}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    configs:
+      # Datasource wordt voorgeprovisioneerd: geen handmatige koppeling nodig.
+      - source: grafana_datasource
+        target: /etc/grafana/provisioning/datasources/prometheus.yaml
+    environment:
+      TZ: Europe/Amsterdam
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?zet GF_ADMIN_PASSWORD in Infisical /prometheus_grafana}
+      # achter de Zoraxy-proxy op https
+      GF_SERVER_ROOT_URL: https://grafana.xdio.nl
+      GF_SERVER_DOMAIN: grafana.xdio.nl
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+configs:
+  prometheus_config:
+    # Scrape-config: Prometheus zichzelf + Grafana's eigen /metrics. Nieuwe targets
+    # (node-exporter, pve-exporter, Beszel, …) komen als extra job_name hieronder.
+    content: |
+      global:
+        scrape_interval: 30s
+        evaluation_interval: 30s
+        external_labels:
+          instance: homelab
+
+      scrape_configs:
+        - job_name: prometheus
+          static_configs:
+            - targets: ["localhost:9090"]
+
+        - job_name: grafana
+          static_configs:
+            - targets: ["grafana:3000"]
+
+  grafana_datasource:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus:9090
+          isDefault: true
+          jsonData:
+            httpMethod: POST
+            timeInterval: 30s
