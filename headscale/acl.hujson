@@ -1,5 +1,16 @@
 {
+  // ACL's: alles mag alles (interne tailnet).
   "acls": [
     { "action": "accept", "src": ["*"], "dst": ["*:*"] }
+  ],
+  // Grants: peer-relay toestaan. De homelab-router (CT169, statisch endpoint
+  // 77.161.7.182:40000) fungeert als relay voor de KPN-kant, zodat verkeer niet
+  // via een publieke DERP-server hoeft (die is veel trager: ~3 Mbit/s).
+  "grants": [
+    {
+      "src": ["*"],
+      "dst": ["*"],
+      "app": { "tailscale.com/cap/relay": [] }
+    }
   ]
 }
