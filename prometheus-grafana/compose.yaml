@@ -59,6 +59,12 @@ services:
       # Datasource wordt voorgeprovisioneerd: geen handmatige koppeling nodig.
       - source: grafana_datasource
         target: /etc/grafana/provisioning/datasources/prometheus.yaml
+      # Dashboards worden ook voorgeprovisioneerd: provider + dashboard-JSON uit
+      # deze stack, zodat een redeploy het dashboard terugzet/actualiseert.
+      - source: grafana_dashboards_provider
+        target: /etc/grafana/provisioning/dashboards/syncthing.yaml
+      - source: grafana_syncthing_dashboard
+        target: /etc/grafana/dashboards/syncthing.json
     environment:
       TZ: Europe/Amsterdam
       GF_SECURITY_ADMIN_USER: admin
@@ -159,3 +165,1547 @@ configs:
           jsonData:
             httpMethod: POST
             timeInterval: 30s
+
+  # Grafana-dashboard-provider: leest JSON uit /etc/grafana/dashboards (het
+  # config-bestand hieronder). Een nieuw dashboard toevoegen = nieuw config-blok
+  # + mount in de grafana-service.
+  grafana_dashboards_provider:
+    content: |
+      apiVersion: 1
+      providers:
+        - name: syncthing
+          orgId: 1
+          folder: Syncthing
+          type: file
+          disableDeletion: false
+          updateIntervalSeconds: 30
+          allowUiUpdates: true
+          options:
+            path: /etc/grafana/dashboards
+            foldersFromFilesStructure: false
+
+  # Het Syncthing-dashboard (uid syncthing-homelab): 16 panels over de twee
+  # Syncthing-instanties (CT139 sync-naz + 10.5.0.134 ignis) — bereikbaarheid,
+  # verbindingen per device, doorvoer, mapgroottes, need-bytes, scans, conflicten.
+  grafana_syncthing_dashboard:
+    content: |
+      {
+        "uid": "syncthing-homelab",
+        "title": "Syncthing",
+        "tags": [
+          "syncthing",
+          "homelab"
+        ],
+        "timezone": "browser",
+        "editable": true,
+        "graphTooltip": 1,
+        "refresh": "30s",
+        "schemaVersion": 39,
+        "version": 0,
+        "time": {
+          "from": "now-6h",
+          "to": "now"
+        },
+        "templating": {
+          "list": [
+            {
+              "name": "instance",
+              "label": "Instantie",
+              "type": "query",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "query": {
+                "qryType": 1,
+                "query": "label_values(up{job=~\"syncthing.*\"}, instance)",
+                "refId": "A"
+              },
+              "refresh": 2,
+              "includeAll": true,
+              "multi": true,
+              "current": {
+                "selected": true,
+                "text": [
+                  "All"
+                ],
+                "value": [
+                  "$__all"
+                ]
+              }
+            },
+            {
+              "name": "folder",
+              "label": "Map",
+              "type": "query",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "query": {
+                "qryType": 1,
+                "query": "label_values(syncthing_model_folder_summary{instance=~\"$instance\"}, folder)",
+                "refId": "A"
+              },
+              "refresh": 2,
+              "includeAll": true,
+              "multi": true,
+              "current": {
+                "selected": true,
+                "text": [
+                  "All"
+                ],
+                "value": [
+                  "$__all"
+                ]
+              }
+            }
+          ]
+        },
+        "annotations": {
+          "list": []
+        },
+        "panels": [
+          {
+            "id": 1,
+            "type": "stat",
+            "title": "Instantie bereikbaar",
+            "description": "1 = de /metrics-endpoint antwoordt, 0 = de scrape mislukt.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 5,
+              "x": 0,
+              "y": 0
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [
+                  {
+                    "options": {
+                      "match": "exact",
+                      "1": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "Up"
+                      }
+                    },
+                    "type": "value"
+                  },
+                  {
+                    "options": {
+                      "match": "exact",
+                      "0": {
+                        "color": "red",
+                        "index": 0,
+                        "text": "Down"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "center",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "last"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "value_and_name",
+              "wideLayout": true,
+              "text": {
+                "titleSize": 12,
+                "valueSize": 26
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "up{job=~\"syncthing.*\", instance=~\"$instance\"}",
+                "instant": true,
+                "legendFormat": "{{instance}}",
+                "range": false,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "type": "stat",
+            "title": "Verbonden apparaten",
+            "description": "Aantal devices met minstens één actieve verbinding.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 5,
+              "x": 5,
+              "y": 0
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "center",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "value_and_name",
+              "wideLayout": true,
+              "text": {
+                "titleSize": 12,
+                "valueSize": 26
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "count by (instance) (syncthing_connections_active{instance=~\"$instance\"} > 0)",
+                "instant": true,
+                "legendFormat": "{{instance}}",
+                "range": false,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "type": "stat",
+            "title": "Mappen niet idle",
+            "description": "0 = alle mappen idle. States: 0 idle, 1 scanning, 2 scan-waiting, 3 sync-waiting, 4 sync-preparing, 5 syncing, 6 cleaning, 7 clean-waiting, 8 error, 9 starting.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 5,
+              "x": 10,
+              "y": 0
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [
+                  {
+                    "options": {
+                      "match": "exact",
+                      "0": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "idle"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "center",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "value_and_name",
+              "wideLayout": true,
+              "text": {
+                "titleSize": 12,
+                "valueSize": 26
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "sum by (instance) (syncthing_model_folder_state{instance=~\"$instance\"} != bool 0)",
+                "instant": true,
+                "legendFormat": "{{instance}}",
+                "range": false,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 4,
+            "type": "stat",
+            "title": "Bestanden te syncen",
+            "description": "scope=need, type=files: 0 = alles is bij.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 4,
+              "x": 15,
+              "y": 0
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [
+                  {
+                    "options": {
+                      "match": "exact",
+                      "0": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "bij"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "center",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "value_and_name",
+              "wideLayout": true,
+              "text": {
+                "titleSize": 12,
+                "valueSize": 26
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "sum(syncthing_model_folder_summary{instance=~\"$instance\", folder=~\"$folder\", scope=\"need\", type=\"files\"})",
+                "instant": true,
+                "legendFormat": "need",
+                "range": false,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 5,
+            "type": "stat",
+            "title": "Te syncen volume",
+            "description": "Nog te ontvangen/verzenden data (scope=need).",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 5,
+              "x": 19,
+              "y": 0
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [
+                  {
+                    "options": {
+                      "match": "exact",
+                      "0": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "bij"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    }
+                  ]
+                },
+                "unit": "decbytes"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "center",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "value_and_name",
+              "wideLayout": true,
+              "text": {
+                "titleSize": 12,
+                "valueSize": 26
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "sum(syncthing_model_folder_summary{instance=~\"$instance\", folder=~\"$folder\", scope=\"need\", type=\"bytes\"})",
+                "instant": true,
+                "legendFormat": "need",
+                "range": false,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 6,
+            "type": "timeseries",
+            "title": "Verbindingen per apparaat",
+            "description": "Actieve verbindingen per device (0 = losgekoppeld). Device-ID's zijn via syncthing_config_device_info naar namen vertaald.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 5
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "min": 0,
+                "decimals": 0
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "syncthing_connections_active{instance=~\"$instance\"} * on(instance,device) group_left(name) syncthing_config_device_info",
+                "instant": false,
+                "legendFormat": "{{instance}} · {{name}}",
+                "range": true,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 7,
+            "type": "timeseries",
+            "title": "Doorvoer (protocol)",
+            "description": "Ontvangen (↓) en verzonden (↑) bytes/s per apparaat over $__rate_interval.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 5
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "unit": "Bps"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "rate(syncthing_protocol_recv_bytes_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,device) group_left(name) syncthing_config_device_info",
+                "instant": false,
+                "legendFormat": "↓ {{instance}} · {{name}}",
+                "range": true,
+                "refId": "A"
+              },
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "rate(syncthing_protocol_sent_bytes_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,device) group_left(name) syncthing_config_device_info",
+                "instant": false,
+                "legendFormat": "↑ {{instance}} · {{name}}",
+                "range": true,
+                "refId": "B"
+              }
+            ]
+          },
+          {
+            "id": 8,
+            "type": "timeseries",
+            "title": "Mapgrootte (global vs local)",
+            "description": "global = wat de map in het cluster hoort te zijn, local = wat er op deze node staat. Een blijvend verschil betekent achterstand of een sendonly-bron.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 13
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "unit": "decbytes"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "syncthing_model_folder_summary{instance=~\"$instance\", folder=~\"$folder\", scope=~\"global|local\", type=\"bytes\"} * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "instant": false,
+                "legendFormat": "{{instance}} · {{label}} · {{scope}}",
+                "range": true,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Mappen in niet-idle staat",
+            "description": "0 = idle; >0 betekent scannen of synchroniseren (8 = error).",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 13
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "min": 0,
+                "decimals": 0
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "sum by (instance, label) (syncthing_model_folder_state{instance=~\"$instance\", folder=~\"$folder\"} * on(instance,folder) group_left(label) syncthing_config_folder_info) or vector(0)",
+                "instant": false,
+                "legendFormat": "{{instance}} · {{label}}",
+                "range": true,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 10,
+            "type": "timeseries",
+            "title": "Scans en pull-iteraties",
+            "description": "Frequentie van scannen en pullen; uitbijters wijzen op trage peers of index-werk.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 0,
+              "y": 21
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "rate(syncthing_model_folder_scans_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "instant": false,
+                "legendFormat": "scans/s {{instance}} · {{label}}",
+                "range": true,
+                "refId": "A"
+              },
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "rate(syncthing_model_folder_pulls_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "instant": false,
+                "legendFormat": "pulls/s {{instance}} · {{label}}",
+                "range": true,
+                "refId": "B"
+              }
+            ]
+          },
+          {
+            "id": 11,
+            "type": "timeseries",
+            "title": "Gem. scanduur per map",
+            "description": "Totale scanningsduur gedeeld door het aantal scans (seconden per scan).",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 8,
+              "y": 21
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "unit": "s"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "rate(syncthing_model_folder_scan_seconds_total{instance=~\"$instance\"}[$__rate_interval]) / rate(syncthing_model_folder_scans_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "instant": false,
+                "legendFormat": "{{instance}} · {{label}}",
+                "range": true,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 12,
+            "type": "timeseries",
+            "title": "Data verwerkt per bron",
+            "description": "Verwerkte bytes/s per bron: network = van peers, local_origin = eigen bestand, local_other = ander lokaal bestand, skipped = nul-blokken.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 16,
+              "y": 21
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "unit": "Bps"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "rate(syncthing_model_folder_processed_bytes_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "instant": false,
+                "legendFormat": "{{instance}} · {{label}} · {{source}}",
+                "range": true,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 13,
+            "type": "stat",
+            "title": "Conflicten in bereik",
+            "description": "Conflicten in het gekozen tijdbereik (increase over $__range).",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 6,
+              "x": 0,
+              "y": 29
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [
+                  {
+                    "options": {
+                      "match": "exact",
+                      "0": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "geen"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "center",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "value_and_name",
+              "wideLayout": true,
+              "text": {
+                "titleSize": 12,
+                "valueSize": 26
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "sum(increase(syncthing_model_folder_conflicts_total{instance=~\"$instance\"}[$__range]))",
+                "instant": true,
+                "legendFormat": "conflicten",
+                "range": false,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 14,
+            "type": "stat",
+            "title": "Versie",
+            "description": "Syncthing-versie per instantie.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 6,
+              "x": 6,
+              "y": 29
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "center",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "value_and_name",
+              "wideLayout": true,
+              "text": {
+                "titleSize": 12,
+                "valueSize": 16
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "syncthing_build_info{instance=~\"$instance\"}",
+                "instant": true,
+                "legendFormat": "{{instance}}: {{version}}",
+                "range": false,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 15,
+            "type": "timeseries",
+            "title": "Proces: CPU",
+            "description": "CPU-gebruik in procent van één core.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 6,
+              "x": 12,
+              "y": 29
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "unit": "percent"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "rate(process_cpu_seconds_total{job=~\"syncthing.*\", instance=~\"$instance\"}[$__rate_interval]) * 100",
+                "instant": false,
+                "legendFormat": "{{instance}}",
+                "range": true,
+                "refId": "A"
+              }
+            ]
+          },
+          {
+            "id": 16,
+            "type": "timeseries",
+            "title": "Proces: geheugen",
+            "description": "Resident geheugen (RSS) van het Syncthing-proces.",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "gridPos": {
+              "h": 5,
+              "w": 6,
+              "x": 18,
+              "y": 29
+            },
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "mappings": [],
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                },
+                "unit": "decbytes"
+              },
+              "overrides": []
+            },
+            "options": {
+              "legend": {
+                "calcs": [],
+                "displayMode": "table",
+                "placement": "bottom",
+                "showLegend": true,
+                "width": 380
+              },
+              "tooltip": {
+                "mode": "multi",
+                "sort": "desc"
+              }
+            },
+            "targets": [
+              {
+                "datasource": {
+                  "type": "prometheus",
+                  "uid": "PBFA97CFB590B2093"
+                },
+                "editorMode": "code",
+                "expr": "process_resident_memory_bytes{job=~\"syncthing.*\", instance=~\"$instance\"}",
+                "instant": false,
+                "legendFormat": "{{instance}}",
+                "range": true,
+                "refId": "A"
+              }
+            ]
+          }
+        ]
+      }

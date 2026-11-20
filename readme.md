@@ -29,7 +29,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
-| prometheus-grafana | Prometheus + Grafana (extern; metrics-TSDB + dashboard-UI, samen in één stack/LXC) | 80 → 3000 (Grafana); Prometheus 9090 → 9090 | images gepind (`prom/prometheus v3.16.0`, `grafana/grafana 13.3.1`), 2 volumes, **inline configs** (scrape-config + voorgprovisioneerde Prometheus-datasource), verplichte stackvariabele `GF_ADMIN_PASSWORD` (Infisical map `/prometheus_grafana`) |
+| prometheus-grafana | Prometheus + Grafana (extern; metrics-TSDB + dashboard-UI, samen in één stack/LXC) | 80 → 3000 (Grafana); Prometheus 9090 → 9090 | images gepind (`prom/prometheus v3.16.0`, `grafana/grafana 13.3.1`), 2 volumes, **inline configs** (scrape-config + voorgprovisioneerde Prometheus-datasource + dashboard-provider met Syncthing-dashboard), verplichte stackvariabele `GF_ADMIN_PASSWORD` (Infisical map `/prometheus_grafana`) |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
 
@@ -57,8 +57,9 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
 - **prometheus-grafana**: externe (niet-s4ndyp) apps in één stack, want ze horen bij elkaar: Grafana
   haalt zijn metrics bij `http://prometheus:9090` over het compose-netwerk. Twee routes: `grafana.xdio.nl` →
   `<lxc>:80` en `prometheus.xdio.nl` → `<lxc>:9090` (Zoraxy + AdGuard-rewrite, beide). Configs staan
-  **inline** in de compose (scrape-config én een voorgprovisioneerde Prometheus-datasource in Grafana);
-  een target toevoegen = scrape-config hier aanpassen + redeploy. Het Grafana-admin-wachtwoord staat in
+  **inline** in de compose (scrape-config, een voorgprovisioneerde Prometheus-datasource in Grafana én
+  een dashboard-provider + dashboard-JSON); een target of dashboard toevoegen = hier aanpassen + redeploy.
+  Het Grafana-admin-wachtwoord staat in
   Infisical-map `/prometheus_grafana` (gestuurd door de stackvariabele
   `DOCKHAND_SECRET_SELECTOR`). Prometheus bewaart 30 dagen in `prometheus_data`.
   Grafana heeft **native Pocket ID-OIDC** (generic OAuth, client 'Grafana', callback
@@ -67,6 +68,11 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
   daarom LAN-only (geen gate). Als scrape-target loopt er een derde job mee: **wg-easy**
   (CT170, `http://10.5.0.170:51821/metrics/prometheus`, Bearer-token uit Infisical — aanzetten/roteren in
   wg-easy → Admin → General), met het WireGuard-dashboard 21733 in Grafana.
+  Daarnaast loopt er een **Syncthing-job** (twee instanties, native `/metrics` op de GUI-poort 8384:
+  CT139 `sync-naz` en 10.5.0.134 `ignis`), met het **Syncthing-dashboard** (uid `syncthing-homelab`,
+  provisioned uit deze stack): bereikbaarheid, verbindingen en doorvoer per apparaat (device-ID's
+  via `syncthing_config_device_info` naar namen), mapgroottes/need-bytes per map, scans/pulls,
+  conflicten en proces-CPU/geheugen.
 
 - **Audit nov 2026 (valkuilen externe daemon):** alle stacks gecontroleerd op file-binds, `service_healthy`
   zonder healthcheck, shell-command-interpretatie en `$`-interpolatie. Enige treffer: dashbrr `./data` →
