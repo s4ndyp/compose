@@ -230,7 +230,7 @@ configs:
                   "All"
                 ],
                 "value": [
-                  "$__all"
+                  "$$__all"
                 ]
               }
             },
@@ -244,7 +244,7 @@ configs:
               },
               "query": {
                 "qryType": 1,
-                "query": "label_values(syncthing_model_folder_summary{instance=~\"$instance\"}, folder)",
+                "query": "label_values(syncthing_model_folder_summary{instance=~\"$$instance\"}, folder)",
                 "refId": "A"
               },
               "refresh": 2,
@@ -256,7 +256,7 @@ configs:
                   "All"
                 ],
                 "value": [
-                  "$__all"
+                  "$$__all"
                 ]
               }
             }
@@ -354,7 +354,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "up{job=~\"syncthing.*\", instance=~\"$instance\"}",
+                "expr": "up{job=~\"syncthing.*\", instance=~\"$$instance\"}",
                 "instant": true,
                 "legendFormat": "{{instance}}",
                 "range": false,
@@ -427,7 +427,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "count by (instance) (syncthing_connections_active{instance=~\"$instance\"} > 0)",
+                "expr": "count by (instance) (syncthing_connections_active{instance=~\"$$instance\"} > 0)",
                 "instant": true,
                 "legendFormat": "{{instance}}",
                 "range": false,
@@ -512,7 +512,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "sum by (instance) (syncthing_model_folder_state{instance=~\"$instance\"} != bool 0)",
+                "expr": "sum by (instance) (syncthing_model_folder_state{instance=~\"$$instance\"} != bool 0)",
                 "instant": true,
                 "legendFormat": "{{instance}}",
                 "range": false,
@@ -597,7 +597,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "sum(syncthing_model_folder_summary{instance=~\"$instance\", folder=~\"$folder\", scope=\"need\", type=\"files\"})",
+                "expr": "sum(syncthing_model_folder_summary{instance=~\"$$instance\", folder=~\"$$folder\", scope=\"need\", type=\"files\"})",
                 "instant": true,
                 "legendFormat": "need",
                 "range": false,
@@ -683,7 +683,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "sum(syncthing_model_folder_summary{instance=~\"$instance\", folder=~\"$folder\", scope=\"need\", type=\"bytes\"})",
+                "expr": "sum(syncthing_model_folder_summary{instance=~\"$$instance\", folder=~\"$$folder\", scope=\"need\", type=\"bytes\"})",
                 "instant": true,
                 "legendFormat": "need",
                 "range": false,
@@ -777,7 +777,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "syncthing_connections_active{instance=~\"$instance\"} * on(instance,device) group_left(name) syncthing_config_device_info",
+                "expr": "syncthing_connections_active{instance=~\"$$instance\"} * on(instance,device) group_left(name) syncthing_config_device_info",
                 "instant": false,
                 "legendFormat": "{{instance}} · {{name}}",
                 "range": true,
@@ -789,7 +789,7 @@ configs:
             "id": 7,
             "type": "timeseries",
             "title": "Doorvoer (protocol)",
-            "description": "Ontvangen (↓) en verzonden (↑) bytes/s per apparaat over $__rate_interval.",
+            "description": "Ontvangen (↓) en verzonden (↑) bytes/s per apparaat over $$__rate_interval.",
             "datasource": {
               "type": "prometheus",
               "uid": "PBFA97CFB590B2093"
@@ -870,7 +870,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "rate(syncthing_protocol_recv_bytes_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,device) group_left(name) syncthing_config_device_info",
+                "expr": "rate(syncthing_protocol_recv_bytes_total{instance=~\"$$instance\"}[$$__rate_interval]) * on(instance,device) group_left(name) syncthing_config_device_info",
                 "instant": false,
                 "legendFormat": "↓ {{instance}} · {{name}}",
                 "range": true,
@@ -882,7 +882,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "rate(syncthing_protocol_sent_bytes_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,device) group_left(name) syncthing_config_device_info",
+                "expr": "rate(syncthing_protocol_sent_bytes_total{instance=~\"$$instance\"}[$$__rate_interval]) * on(instance,device) group_left(name) syncthing_config_device_info",
                 "instant": false,
                 "legendFormat": "↑ {{instance}} · {{name}}",
                 "range": true,
@@ -975,7 +975,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "syncthing_model_folder_summary{instance=~\"$instance\", folder=~\"$folder\", scope=~\"global|local\", type=\"bytes\"} * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "expr": "syncthing_model_folder_summary{instance=~\"$$instance\", folder=~\"$$folder\", scope=~\"global|local\", type=\"bytes\"} * on(instance,folder) group_left(label) syncthing_config_folder_info",
                 "instant": false,
                 "legendFormat": "{{instance}} · {{label}} · {{scope}}",
                 "range": true,
@@ -1069,7 +1069,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "sum by (instance, label) (syncthing_model_folder_state{instance=~\"$instance\", folder=~\"$folder\"} * on(instance,folder) group_left(label) syncthing_config_folder_info) or vector(0)",
+                "expr": "sum by (instance, label) (syncthing_model_folder_state{instance=~\"$$instance\", folder=~\"$$folder\"} * on(instance,folder) group_left(label) syncthing_config_folder_info) or vector(0)",
                 "instant": false,
                 "legendFormat": "{{instance}} · {{label}}",
                 "range": true,
@@ -1161,7 +1161,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "rate(syncthing_model_folder_scans_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "expr": "rate(syncthing_model_folder_scans_total{instance=~\"$$instance\"}[$$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
                 "instant": false,
                 "legendFormat": "scans/s {{instance}} · {{label}}",
                 "range": true,
@@ -1173,7 +1173,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "rate(syncthing_model_folder_pulls_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "expr": "rate(syncthing_model_folder_pulls_total{instance=~\"$$instance\"}[$$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
                 "instant": false,
                 "legendFormat": "pulls/s {{instance}} · {{label}}",
                 "range": true,
@@ -1266,7 +1266,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "rate(syncthing_model_folder_scan_seconds_total{instance=~\"$instance\"}[$__rate_interval]) / rate(syncthing_model_folder_scans_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "expr": "rate(syncthing_model_folder_scan_seconds_total{instance=~\"$$instance\"}[$$__rate_interval]) / rate(syncthing_model_folder_scans_total{instance=~\"$$instance\"}[$$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
                 "instant": false,
                 "legendFormat": "{{instance}} · {{label}}",
                 "range": true,
@@ -1359,7 +1359,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "rate(syncthing_model_folder_processed_bytes_total{instance=~\"$instance\"}[$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
+                "expr": "rate(syncthing_model_folder_processed_bytes_total{instance=~\"$$instance\"}[$$__rate_interval]) * on(instance,folder) group_left(label) syncthing_config_folder_info",
                 "instant": false,
                 "legendFormat": "{{instance}} · {{label}} · {{source}}",
                 "range": true,
@@ -1371,7 +1371,7 @@ configs:
             "id": 13,
             "type": "stat",
             "title": "Conflicten in bereik",
-            "description": "Conflicten in het gekozen tijdbereik (increase over $__range).",
+            "description": "Conflicten in het gekozen tijdbereik (increase over $$__range).",
             "datasource": {
               "type": "prometheus",
               "uid": "PBFA97CFB590B2093"
@@ -1444,7 +1444,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "sum(increase(syncthing_model_folder_conflicts_total{instance=~\"$instance\"}[$__range]))",
+                "expr": "sum(increase(syncthing_model_folder_conflicts_total{instance=~\"$$instance\"}[$$__range]))",
                 "instant": true,
                 "legendFormat": "conflicten",
                 "range": false,
@@ -1513,7 +1513,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "syncthing_build_info{instance=~\"$instance\"}",
+                "expr": "syncthing_build_info{instance=~\"$$instance\"}",
                 "instant": true,
                 "legendFormat": "{{instance}}: {{version}}",
                 "range": false,
@@ -1606,7 +1606,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "rate(process_cpu_seconds_total{job=~\"syncthing.*\", instance=~\"$instance\"}[$__rate_interval]) * 100",
+                "expr": "rate(process_cpu_seconds_total{job=~\"syncthing.*\", instance=~\"$$instance\"}[$$__rate_interval]) * 100",
                 "instant": false,
                 "legendFormat": "{{instance}}",
                 "range": true,
@@ -1699,7 +1699,7 @@ configs:
                   "uid": "PBFA97CFB590B2093"
                 },
                 "editorMode": "code",
-                "expr": "process_resident_memory_bytes{job=~\"syncthing.*\", instance=~\"$instance\"}",
+                "expr": "process_resident_memory_bytes{job=~\"syncthing.*\", instance=~\"$$instance\"}",
                 "instant": false,
                 "legendFormat": "{{instance}}",
                 "range": true,
