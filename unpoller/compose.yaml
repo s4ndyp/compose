@@ -1,0 +1,23 @@
+# unpoller — UniFi Network → Prometheus exporter (unpoller/unpoller)
+# Stateless daemon: pollt de UniFi-controller en serveert /metrics op 9130.
+# Geen web-UI, dus GEEN host-poort 80: alleen 9130 (Prometheus scrapet dat intern).
+# Auth: lokale API-key van de console (UniFi Network 10.6). Geen user/pass nodig.
+name: unpoller
+
+services:
+  unpoller:
+    image: ghcr.io/unpoller/unpoller:v5.9.6
+    container_name: unpoller
+    restart: unless-stopped
+    ports:
+      - "9130:9130"
+    environment:
+      TZ: Europe/Amsterdam
+      # UnifiOS: geen :8443 in de URL, het proxyt via 443
+      UP_UNIFI_DEFAULT_URL: "https://10.5.0.1"
+      UP_UNIFI_DEFAULT_API_KEY: "${UNIFI_API_KEY:?zet UNIFI_API_KEY in Infisical /unpoller}"
+      UP_UNIFI_DEFAULT_VERIFY_SSL: "false"
+      UP_UNIFI_DEFAULT_SAVE_SITES: "true"
+      # geen InfluxDB-output; alleen Prometheus
+      UP_INFLUXDB_DISABLE: "true"
+      UP_POLLER_QUIET: "true"
