@@ -1,0 +1,44 @@
+# radarr — Radarr (film-automatisering)
+#
+# Draait in CT 116 (10.5.0.116) onder Dockhand. Was een native installatie
+# (/opt/Radarr + systemd-unit radarr.service); de config wordt 1-op-1
+# bind-gemount vanaf /var/lib/radarr, zodat terugvallen zonder datamigratie kan.
+#
+# ⚠ VERSIESPRONG: native draaide 6.4.4.10685, deze image is 7.0.3.10918.
+#   De DB wordt bij de eerste start naar v7 gemigreerd — terug naar de native
+#   6.4.4 kan daarna alleen met de backup:
+#   /mnt/mediavault/_backups/radarr-var-lib-20261120.tar.gz
+#
+# Poorten: 7878 blijft 1-op-1 (GEEN 80-conventie). Die poort is een contract:
+# Seerr/Overseerr (10.5.0.116:7878), Bazarr en SABnzbd staan er hard op
+# geconfigureerd. Niet hernummeren.
+#
+# De CIFS-mounts moeten op EXACT dezelfde paden in de container staan als op de
+# host: alle paden in de Radarr-DB (/mnt/mediavault/Movies/..., /mnt/secure/...)
+# zijn absoluut opgeslagen.
+name: radarr
+
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:7.0.3.10918-ls328
+    container_name: radarr
+    environment:
+      # Draait als root, net als de native installatie: de CIFS-shares zijn
+      # gemount met uid=0/gid=0, dus alles blijft dezelfde eigenaar.
+      PUID: "0"
+      PGID: "0"
+      UMASK: "000"
+      TZ: Europe/Amsterdam
+    ports:
+      - "7878:7878"
+    volumes:
+      - /var/lib/radarr:/config
+      - /mnt/mediavault:/mnt/mediavault
+      - /mnt/secure:/mnt/secure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7878/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
