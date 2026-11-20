@@ -8,7 +8,7 @@ altijd **host-poort 80**; de container-interne poort blijft zoals de app zelf lu
 De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 > **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
-> Homarr, Pocket ID, Headscale, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
+> Homarr, Pocket ID, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
 > God's Eye View en de Forgejo-runner).
 >
 > De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
@@ -25,7 +25,6 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | forgejo | Forgejo (extern; self-hosted Git-service, Gitea-fork) | 80 → 3000; SSH 2222 → 2222 | image `codeberg.org/forgejo/forgejo:17.0.1` (gepind), volume `forgejo_data`, OIDC via Pocket ID (auth-bron in DB) |
 | forgejo-runner | Forgejo Actions runner (eigen LXC CT138; DinD + forgejo-runner 13.2.1 + docker:29-dind) | geen browser-poort | 3 volumes (runner_data/dind_data/docker_certs); **verplichte** stack-variabelen FORGEJO_RUNNER_UUID + FORGEJO_RUNNER_SECRET (Infisical map `/forgejo/runner`, selector `DOCKHAND_SECRET_SELECTOR`); labels ubuntu-latest/ubuntu-22.04/ubuntu-24.04/docker |
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
-| headscale | Headscale + Headplane (extern; Tailscale-controlserver + web-UI) | 80 → 3000 (UI op `/admin`); control/API 8080 → 8080 | images gepind (`headscale 0.29.7`, `headplane 0.8.2`), 4 volumes; stack-variabelen COOKIE_SECRET/HEADSCALE_API_KEY/OIDC_* (Infisical map `/headscale`) |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
@@ -37,9 +36,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 Eén LXC bindt poort 80 maar één keer; secundaire diensten houden een eigen poort:
 beszel `hub` (8090 — de vaste `HUB_URL` van álle agents, geen browserdienst),
-headscale `headscale` (8080 — de control-poort waarop de
-Tailscale-clients verbinden; de web-UI van headplane houdt 80), prometheus-grafana `prometheus` (9090 — eigen
-domein `prometheus.xdio.nl`, Grafana houdt 80) en dashbrr (8080, eigen opzet).
+prometheus-grafana `prometheus` (9090 — eigen domein `prometheus.xdio.nl`, Grafana houdt 80) en dashbrr (8080, eigen opzet).
 De eigen apps houden hun eigen poortafspraken in hun eigen repo (o.a. dyncompare `sync` 8080,
 onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
 
@@ -92,32 +89,6 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
-- **headscale + headplane**: externe (niet-s4ndyp) app. Headscale is een self-hosted
-  Tailscale-controlserver (WireGuard-mesh zonder Tailscale-account); headplane is de web-UI
-  erboven (upstream image `ghcr.io/tale/headplane`, draait als root in de container).
-  Twee routes: `headplane.xdio.nl` → `<lxc>:80` (UI op het pad **`/admin`**) en
-  `headscale.xdio.nl` → `<lxc>:8080` (de `server_url` waarop Tailscale-clients verbinden —
-  via Zoraxy, met het wildcard-certificaat; clients hebben https nodig).
-  Headplane praat server-side met `http://headscale:8080` over het compose-netwerk.
-  Beide configs zijn **templates in de repo**: `repo-init` rendert ze met de stackvariabelen
-  COOKIE_SECRET, HEADSCALE_API_KEY en OIDC_CLIENT_ID/OIDC_CLIENT_SECRET (Infisical map
-  `/headscale`) naar de volumes `headscale-config` en `headplane-config`. Zonder OIDC-variabelen
-  start de stack met SSO uit; het OIDC-blok in `headscale-config.template.yaml` staat tussen
-  `# OIDC-BEGIN` / `# OIDC-END` en wordt dan weggelaten. De templates komen uit de repo-tarball
-  van **codeload.github.com**, gepind op de commit in de stackvariabele `HEADSCALE_REF`
-  (zet die na elke wijziging op de nieuwe SHA — raw.githubusercontent én codeload cachen
-  enkele minuten, en dan rendert een verse deploy nog de oude template). De headscale-API-key
-  maak je ná de eerste deploy: `docker exec headscale /ko-app/headscale apikeys create
-  --expiration 365d` → als stackvariabele HEADSCALE_API_KEY zetten en opnieuw deployen.
-  SSO loopt via Pocket ID met één client voor beide diensten (callbacks
-  `https://headplane.xdio.nl/admin/oidc/callback` én `https://headscale.xdio.nl/oidc/callback`,
-  `pkceEnabled=true`). OIDC `only_start_if_oidc_is_available` staat uit: de LXC-resolver moet
-  `pocket.xdio.nl` kunnen resolven (PVE `nameserver`, zie skill `proxlan-dns-management`).
-  MagicDNS draait met `base_domain: proxlan.nl` en de AdGuard-servers als nameservers, zodat
-  tailnet-clients de LAN-namen (`*.xdio.nl`, `*.prolan.nl`) gewoon oplossen; extra A-records
-  beheer je in de UI (bestand `extra_records.json`, dat headscale live inleest).
-  Geen embedded DERP (de host is LAN-only, STUN/UDP naar buiten kan niet) — clients gebruiken
-  de publieke DERP-map als relay. Minimaal 2 GB RAM.
 - **netronome**: externe (niet-s4ndyp) app. Container-intern 7575, host 80. SQLite-variant
   (upstream levert ook een postgres-compose; niet nodig voor één LXC). Data in het named volume
   `netronome_data` (/data: db, gegenereerde config.toml met session secret, logs). `NET_RAW` is
