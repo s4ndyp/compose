@@ -1,0 +1,41 @@
+# sonarr — Sonarr (serie-automatisering)
+#
+# Draait in CT 115 (10.5.0.115) onder Dockhand. Was een native installatie
+# (/opt/Sonarr + systemd-unit sonarr.service); de config wordt 1-op-1
+# bind-gemount vanaf /var/lib/sonarr, zodat terugvallen zonder datamigratie kan.
+#
+# Versie: native 4.0.20.3014 == image 4.0.20.3014-ls5 (geen DB-migratie).
+# Backup voor de zekerheid: /mnt/mediavault/_backups/sonarr-var-lib-20261120.tar.gz
+#
+# Poorten: 8989 blijft 1-op-1 (GEEN 80-conventie). Die poort is een contract:
+# Seerr/Overseerr (10.5.0.115:8989) en Bazarr staan er hard op geconfigureerd.
+#
+# De CIFS-mounts moeten op EXACT dezelfde paden in de container staan als op de
+# host: alle paden in de Sonarr-DB (/mnt/mediavault/Series/..., /mnt/secure/...)
+# zijn absoluut opgeslagen.
+name: sonarr
+
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:4.0.20.3014-ls5
+    container_name: sonarr
+    environment:
+      # Draait als root, net als de native installatie: de CIFS-shares zijn
+      # gemount met uid=0/gid=0, dus alles blijft dezelfde eigenaar.
+      PUID: "0"
+      PGID: "0"
+      UMASK: "000"
+      TZ: Europe/Amsterdam
+    ports:
+      - "8989:8989"
+    volumes:
+      - /var/lib/sonarr:/config
+      - /mnt/mediavault:/mnt/mediavault
+      - /mnt/secure:/mnt/secure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8989/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
