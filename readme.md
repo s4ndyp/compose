@@ -9,7 +9,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 > **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
 > Homarr, Pocket ID, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
-> God's Eye View en de Forgejo-runner).
+> God's Eye View, Paperless-ngx en de Forgejo-runner).
 >
 > De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
 > `quicknote`, `sync-ms`, `dyncompare`, `snapzilla`, `supermemory-dashboard`, `assetvault`, `backai`,
@@ -27,6 +27,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
 | netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
+| paperless | Paperless-ngx (extern; documentenbeheer/DMS — web + consumer + scheduler, met Gotenberg + Tika) | 80 → 8000 | images `3.5.1` (gepind, `PAPERLESS_IMAGE`) + `postgres:18`, `redis:8`, `gotenberg 8.25`, `apache/tika:latest`; volumes `pgdata`+`redisdata`, **bind-mounts** naar `/opt/paperless/{data,media,consume,export}` (overgenomen van de native installatie, uid 1000); verplichte stackvariabelen uit Infisical `/paperless`; v3 handhaaft `ALLOWED_HOSTS` |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
 | prometheus-grafana | Prometheus + Grafana (extern; metrics-TSDB + dashboard-UI, samen in één stack/LXC) | 80 → 3000 (Grafana); Prometheus 9090 → 9090 | images gepind (`prom/prometheus v3.16.0`, `grafana/grafana 13.3.1`), 2 volumes, **inline configs** (scrape-config + voorgprovisioneerde Prometheus-datasource + dashboard-provider met Syncthing-dashboard), verplichte stackvariabele `GF_ADMIN_PASSWORD` (Infisical map `/prometheus_grafana`) |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
@@ -88,6 +89,15 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
 - **uptime-kotlin**: externe uptime-monitor (één Quarkus-image + Postgres). Vereist eigen
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
+- **paperless**: externe (niet-s4ndyp) app; op 2026-11-21 gemigreerd van de native community-script
+  install naar Docker. Data blijft op de host: **bind-mounts** naar `/opt/paperless/{data,media,consume,export}` —
+  die mappen moeten **uid 1000** zijn (`chown -R 1000:1000`), want de image draait als de `paperless`-user.
+  De native diensten staan uit maar zijn het terugrolpad (LXC-snapshot `pre-docker` + DB-dump
+  `/opt/paperless/pre-docker-paperlessdb.sql`). **Gotenberg + Tika** zitten erbij (Office-/mail-verwerking).
+  **v3-valkuil:** zodra `PAPERLESS_URL` gezet is geeft een request naar het kale IP **400**; zet
+  `PAPERLESS_ALLOWED_HOSTS` (default in de compose: domein + LXC-IP + localhost). Upgraden: `PAPERLESS_IMAGE`
+  ophogen + redeploy — **v3 kan alleen vanaf 2.20.15** (draai eerst een 2.20.15-image op een oudere DB; de
+  zoekindex Whoosh→Tantivy wordt bij de eerste v3-start herbouwd). Login via Pocket ID (eigen OIDC, geen gate).
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
 - **netronome**: externe (niet-s4ndyp) app. Container-intern 7575, host 80. SQLite-variant
   (upstream levert ook een postgres-compose; niet nodig voor één LXC). Data in het named volume

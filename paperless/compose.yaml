@@ -1,0 +1,79 @@
+name: paperless
+
+# Paperless-ngx (extern; documentenbeheer/DMS) — LXC CT109, Docker onder Dockhand (env 54).
+#   app + postgres + redis + gotenberg + tika
+#
+# Data is overgenomen van de oude NATIVE install → bind-mounts naar /opt/paperless/*.
+#   (media/data/consume/export moeten uid 1000 zijn: chown -R 1000:1000)
+# Upgraden: wijzig PAPERLESS_IMAGE hieronder of in de stack-env, dan redeploy.
+#   (v3 kan alleen vanaf 2.20.15 — draai eerst een 2.20.15-image op een oudere DB.)
+# Vereiste stack-variabelen (uit Infisical /paperless of de stack-env):
+#   PAPERLESS_DBPASS, PAPERLESS_SECRET_KEY, PAPERLESS_SOCIALACCOUNT_PROVIDERS
+# Zoraxy-route paperless.xdio.nl → 10.5.0.109:80.
+
+services:
+  broker:
+    image: docker.io/library/redis:8
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+
+  db:
+    image: docker.io/library/postgres:18
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: paperlessdb
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: ${PAPERLESS_DBPASS:?zet PAPERLESS_DBPASS in de stack-env}
+
+  webserver:
+    image: ${PAPERLESS_IMAGE:-ghcr.io/paperless-ngx/paperless-ngx:3.5.1}
+    restart: unless-stopped
+    depends_on:
+      - db
+      - broker
+      - gotenberg
+      - tika
+    ports:
+      - "80:8000"
+    volumes:
+      - /opt/paperless/data:/usr/src/paperless/data
+      - /opt/paperless/media:/usr/src/paperless/media
+      - /opt/paperless/consume:/usr/src/paperless/consume
+      - /opt/paperless/export:/usr/src/paperless/export
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+      PAPERLESS_DBENGINE: postgresql
+      PAPERLESS_DBNAME: paperlessdb
+      PAPERLESS_DBUSER: paperless
+      PAPERLESS_DBPASS: ${PAPERLESS_DBPASS:?}
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY:?}
+      PAPERLESS_URL: https://paperless.xdio.nl
+      PAPERLESS_ALLOWED_HOSTS: ${PAPERLESS_ALLOWED_HOSTS:-paperless.xdio.nl,10.5.0.109,localhost,127.0.0.1}
+      PAPERLESS_TIME_ZONE: Europe/Amsterdam
+      PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
+      PAPERLESS_SOCIALACCOUNT_PROVIDERS: ${PAPERLESS_SOCIALACCOUNT_PROVIDERS:?}
+      PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS: "false"
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://tika:9998
+
+  gotenberg:
+    image: docker.io/gotenberg/gotenberg:8.25
+    restart: unless-stopped
+    # Chromium-route voor .eml; externe content (tracking-pixels/js) uit.
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=file:///tmp/.*"
+
+  tika:
+    image: docker.io/apache/tika:latest
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
