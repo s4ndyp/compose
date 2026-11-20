@@ -1,0 +1,39 @@
+# seerr — Seerr (request-manager; opvolger van Overseerr, gefuseerd met Jellyseerr)
+#
+# Draait in CT 119 (10.5.0.119) onder Dockhand. Was een native installatie
+# (/opt/overseerr + systemd-unit overseerr.service); de config is 1-op-1
+# gekopieerd naar /opt/seerr-config zodat terugvallen op de native unit zonder
+# datamigratie kan (/opt/overseerr/config blijft staan, unit gestopt/gedisabled).
+#
+# Migratie: Seerr zet bij de EERSTE start de Overseerr-database + config
+# automatisch om (extra config-migratiestap voor Overseerr-gebruikers).
+# Een BACKUP van de config vóór de eerste start is het terugrolpad.
+#
+# Poorten: 80 is de browser-route (homelab-conventie, Zoraxy-upstream
+# 10.5.0.119:80); intern luistert Seerr op 5055.
+name: seerr
+
+services:
+  seerr:
+    # Gepind op de nieuwste release (2026-11-12). Ophogen = tag wijzigen + redeploy.
+    image: ghcr.io/seerr-team/seerr:v3.5.2
+    container_name: seerr
+    # Het image levert geen init-proces meer; zonder init:true blijven
+    # zombies/afsluitproblemen hangen.
+    init: true
+    ports:
+      - "${SEERR_PORT:-80}:5055"
+    volumes:
+      # Map van de gemigreerde Overseerr-installatie (db/ + settings.json).
+      # De container draait als node (UID 1000) -> chown 1000:1000 vereist.
+      - /opt/seerr-config:/app/config
+    environment:
+      TZ: Europe/Amsterdam
+      PORT: "5055"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5055/api/v1/settings/public"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
