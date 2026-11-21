@@ -8,12 +8,12 @@ name: rtsp2unifi-protect
 # RTSP-pad). Deze bridge presenteert elke RTSP-stream als een ONVIF-apparaat waar Protect wél
 # mee overweg kan. De verbinding naar de echte bron is byte-voor-byte: niets wordt getranscodeerd.
 #
-# DRIE CAMERA'S, DRIE IP's, ALLE DRIE RECHTSTREEKS NAAR DE CAMERA (2026-11-21)
-# Voorheen haalde de bridge zijn beeld bij de Dahua NVR (kanalen 2 en 3). Reden om dat te
-# verlaten: de XM-camera (192.168.2.11) hangt alleen op zijn ONVIF-dienst — de NVR haalt die
-# camera via ONVIF binnen en verloor hem zodra die dienst haperde, waardoor Protect meeviel.
-# De RTSP-kant van diezelfde camera is 100% stabiel. Directe RTSP-pulls maken Protect dus
-# onafhankelijk van camera-ONVIF; de NVR blijft intussen gewoon op ONVIF voor PTZ en opnames.
+# DRIE CAMERA'S, DRIE IP's — 2 DIRECT, 1 VIA DE NVR (2026-11-21)
+# De twee Dahua's (192.168.2.30 en 192.168.2.28) worden rechtstreeks op RTSP gepulld: die
+# serveren meerdere sessies zonder morren, en zo hangt Protect niet aan camera-ONVIF.
+# De Xiongmai (192.168.2.11) gaat via de Dahua NVR (kanaal 2): die camera kan maar één
+# RTSP-sessie aan en Protect vraagt er twee, dus de NVR moet de enige consumer zijn.
+# Zie de toelichting bij die entry.
 #
 # Protect vraagt alleen een IP (geen poort) → elke virtuele camera staat op poort 80 van een
 # EIGEN adres. Drie netwerkinterfaces op het LXC:
@@ -82,26 +82,29 @@ configs:
               snapshot: 80
 
         # --- camera 192.168.2.11 (Xiongmai XM530) ---
-        - name: Camera 192.168.2.11 (Xiongmai)
+        - name: Camera 192.168.2.11 (Xiongmai, via Dahua NVR)
           uuid: 849a2cd6-c8c8-42dd-83c6-4ba98570db67
           hostname: 10.5.0.63           # eth1 van het LXC (extra IP < 100)
           manufacturer: Xiongmai
           model: XM530_R80X20-PQ_8M
-          # Geen snapshot-poort: deze firmware levert geen snapshot zonder wachtwoord in de URL.
-          # Zonder snapshot-poort serveert de bridge een placeholder-thumbnail; de stream werkt.
+          # LET OP: deze camera kan feitelijk maar ÉÉN RTSP-sessie aan. Protect opent er
+          # standaard twee (live + 24/7-opname) en dan laat de camera BEIDE vallen: kort beeld,
+          # weg, opnieuw. Daarom loopt deze ene camera via de Dahua NVR (kanaal 2), die het
+          # beeld intern verdeelt — de NVR is dan de enige consumer van de camera.
+          # Gevolg: in Protect vul je voor DEZE camera het NVR-account in, niet het camera-account.
+          # Geen snapshot-poort: de NVR geeft voor kanaal 2 een 401 op snapshot.cgi.
           ports:
             server: 80
             rtsp: 8554
           highQuality:
-            rtsp: /cam/realmonitor?channel=1&subtype=0
+            rtsp: /cam/realmonitor?channel=2&subtype=0
             width: 1920
             height: 1080
             framerate: 12
             bitrate: 2560
             quality: 4
-
           target:
-            hostname: 192.168.2.11       # de camera zelf
+            hostname: 192.168.2.251       # de Dahua NVR (kanaal 2), NIET de camera zelf
             ports:
               rtsp: 554
 
