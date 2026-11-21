@@ -56,3 +56,4 @@ configs:
         # enige reden dat hier een ffmpeg:-bron staat in plaats van een kale rtsp-URL;
         # 720p kost ongeveer de helft van één core.
         g6-turret: ffmpeg:rtsp://10.3.0.30:7447/hHzQ7KUxyAoiHKsH#video=h264
+        tuin: ffmpeg:rtsp://10.3.0.30:7447/2xb0ZtIUdgqsYoDh#video=h264
