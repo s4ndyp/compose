@@ -1,0 +1,56 @@
+name: go2rtc
+
+# go2rtc — kijkpagina voor de UniFi Protect-camera's, bedoeld voor de ouders.
+#
+# WAAROM DEZE STACK ER IS
+# Protect exporteert per camera een stream als `rtsps://10.3.0.30:7441/<token>?enableSrtp`
+# (TLS + SRTP). SmartPSS kan daar niets mee en accepteert ook geen ONVIF, dus er is een
+# tussenlaag nodig die er een gewone webpagina van maakt. go2rtc haalt de stream op (bij
+# voorkeur via poort 7447 = dezelfde UNVR, platte RTSP zonder TLS) en serveert hem als
+# WebRTC/MSE in de browser. Streams worden pas opgehaald als er iemand kijkt.
+#
+# NETWERK: host-modus. Nodig voor WebRTC (UDP 8555 + de juiste candidate-IP's) en het stelt
+# de web-UI in staat op poort 80 te luisteren — de huisregel voor browser-apps.
+#
+# CONFIG staat inline (configs: met content:) omdat relatieve binds op een externe
+# docker-daemon niet werken. Let op: inline configs worden bij het AANMAKEN in de container
+# gezet — na een wijziging dus container verwijderen + opnieuw deployen, niet alleen redeployen.
+
+services:
+  go2rtc:
+    image: alexxit/go2rtc:1.9.15
+    container_name: go2rtc
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: Europe/Amsterdam
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/api/streams"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    configs:
+      - source: go2rtc_yaml
+        target: /config/go2rtc.yaml
+
+configs:
+  go2rtc_yaml:
+    content: |
+      api:
+        listen: ":80"
+      rtsp:
+        listen: ":8554"
+      webrtc:
+        listen: ":8555"
+      log:
+        level: info
+
+      streams:
+        # Per Protect-camera één regel. Bron = de UNVR (10.3.0.30):
+        #   rtsp://10.3.0.30:7447/<token>          <- platte RTSP, dit gebruikt go2rtc
+        #   rtsps://10.3.0.30:7441/<token>?enableSrtp  <- de link uit Protect zelf (TLS+SRTP)
+        # De tokens komen uit Protect: camera -> Instellingen -> Geavanceerd ->
+        # "Secure RTSPS Output" aanzetten en de link kopieren.
+        #
+        # voorbeeld:
+        #   voordeur: rtsp://10.3.0.30:7447/AbCdEf123456
