@@ -9,7 +9,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 > **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
 > Homarr, Pocket ID, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
-> God's Eye View, Paperless-ngx en de Forgejo-runner).
+> God's Eye View, Paperless-ngx, rtsp2unifi-protect en de Forgejo-runner).
 >
 > De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
 > `quicknote`, `sync-ms`, `dyncompare`, `snapzilla`, `supermemory-dashboard`, `assetvault`, `backai`,
@@ -32,6 +32,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | prometheus-grafana | Prometheus + Grafana (extern; metrics-TSDB + dashboard-UI, samen in één stack/LXC) | 80 → 3000 (Grafana); Prometheus 9090 → 9090 | images gepind (`prom/prometheus v3.16.0`, `grafana/grafana 13.3.1`), 2 volumes, **inline configs** (scrape-config + voorgprovisioneerde Prometheus-datasource + dashboard-provider met Syncthing-dashboard), verplichte stackvariabele `GF_ADMIN_PASSWORD` (Infisical map `/prometheus_grafana`) |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
+| rtsp2unifi-protect | rtsp2unifi-protect (extern; virtuele ONVIF-camera die de Dahua-NVR-stream van de camera bij de ouders als ONVIF doorgeeft aan UniFi Protect) | geen browser-poort (host-netwerk) | image `ghcr.io/mz738/rtsp2unifi-protect:2.2.2` (gepind), **host-netwerk** (virtuele camera op LXC-IP `10.5.0.163`: ONVIF 80, RTSP 8554, snapshot 8580), inline config `onvif.yaml` (target = NVR `192.168.2.251` kanaal 3); géén credentials in de config (die vul je in Protect bij adoptie) |
 
 ## Diensten die níét op 80 kunnen (binnen één stack)
 
@@ -40,6 +41,9 @@ beszel `hub` (8090 — de vaste `HUB_URL` van álle agents, geen browserdienst),
 prometheus-grafana `prometheus` (9090 — eigen domein `prometheus.xdio.nl`, Grafana houdt 80) en dashbrr (8080, eigen opzet).
 De eigen apps houden hun eigen poortafspraken in hun eigen repo (o.a. dyncompare `sync` 8080,
 onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
+**rtsp2unifi-protect** is een uitzondering op de 80-norm: het is geen browserdienst maar een
+ONVIF-bridge, draait met **host-netwerk** en heeft dus géén `ports:`-mapping (de virtuele camera
+bindt zelf het LXC-IP op 80/8554/8580).
 
 ## Overgeslagen repo's (geen draaibare server-app)
 
@@ -86,6 +90,16 @@ onvif-explorer `go2rtc` 1984, wasmme `admin` 8080, webkey `preview` 5051).
 - **infisical**: externe (niet-s4ndyp) app; ook dashbrr en uptime-kotlin zijn extern. Doe `cp .env.example .env`
   op de host, gegenereer eigen `ENCRYPTION_KEY`/`AUTH_SECRET` en bewaar `ENCRYPTION_KEY`
   offline — zonder die sleutel is een `pg_data`-backup onleesbaar. Minimaal 4 GB RAM aanbevolen.
+- **rtsp2unifi-protect**: externe (niet-s4ndyp) app — een virtuele ONVIF-camera die een RTSP-stream
+  doorgeeft aan UniFi Protect. Doel hier: Protect kan bij een third-party camera alleen IP + login
+  opgeven (geen eigen RTSP-pad) en de camera bij de ouders (192.168.2.30) laat periodiek zijn
+  HTTP/RTSP/ONVIF hangen (oude firmware). De Dahua NVR (192.168.2.251) praat via het stabiele
+  37777-protocol en herserveert de stream als RTSP (kanaal 3); deze bridge presenteert díe stream als
+  ONVIF-apparaat. Protect adopteert de bridge (IP `10.5.0.163` + login) en praat zo met de NVR i.p.v.
+  met de happerende camera. **Host-netwerk**; de virtuele camera bindt het LXC-IP (config-`hostname`),
+  dus een IP-wijziging van de LXC vraagt een aanpassing in de inline `onvif.yaml`. Credentials staan
+  niet in de config maar worden door Protect meegestuurd (byte-voor-byte forward). Nieuwe versie:
+  tag ophogen (`gh release list -R mZ738/rtsp2unifi-protect`) + redeploy.
 - **uptime-kotlin**: externe uptime-monitor (één Quarkus-image + Postgres). Vereist eigen
   `ENCRYPTION_MASTER_KEY` (openssl rand -base64 32) en `UPTIME_DB_PASSWORD` via `${VAR:?}` —
   de deploy faalt expliciet zonder; zet ze in Dockhand Stack → Environment.
