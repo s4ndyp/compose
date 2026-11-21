@@ -1,23 +1,28 @@
 name: rtsp2unifi-protect
 
-# Externe stack (niet-s4ndyp): rtsp2unifi-protect — een virtuele ONVIF-camera die een
-# bestaande RTSP-stream doorgeeft aan UniFi Protect.
+# Externe stack (niet-s4ndyp): rtsp2unifi-protect — virtuele ONVIF-camera's die bestaande
+# RTSP-streams doorgeven aan UniFi Protect.
 #
 # WAAROM DEZE STACK HIER STAAT
-# De Dahua-camera op 192.168.2.30 (netwerk ouders) laat periodiek zijn HTTP/RTSP/ONVIF-service
-# hangen (oude firmware 2.640 uit 2018); het Dahua-eigen protocol (poort 37777) blijft dan werken.
-# De Dahua NVR (192.168.2.251) praat via dat stabiele protocol en HER-SERVEERT de stream als RTSP
-# (kanaal 3 = de camera). UniFi Protect in de homelab kan geen eigen RTSP-pad opgeven (alleen IP +
-# login), dus deze bridge presenteert de NVR-stream als een ONVIF-apparaat waar Protect wél mee
-# overweg kan. Protect praat dan met de NVR i.p.v. met de happerende camera.
+# De Dahua-camera's in het netwerk van de ouders laten soms hun HTTP/RTSP/ONVIF-service hangen
+# (oude firmware); het Dahua-eigen protocol (poort 37777) blijft dan werken. De Dahua NVR
+# (192.168.2.251) praat via dat stabiele protocol en HER-SERVEERT elke camera als RTSP. UniFi
+# Protect kan bij een third-party camera alleen IP + login opgeven (geen eigen RTSP-pad/kanaal),
+# dus deze bridge presenteert elke NVR-stream als een ONVIF-apparaat waar Protect wél mee overweg
+# kan. Protect praat dan met de NVR i.p.v. met de happerende camera.
+#
+# TWEE VIRTUELE CAMERA'S, TWEE IP's: Protect vraagt alleen een IP (geen poort), dus elke virtuele
+# camera moet op poort 80 van een EIGEN adres staan. Het LXC heeft daarom twee netwerkinterfaces:
+#   eth0 = 10.5.0.163  -> NVR-kanaal 3 = camera 192.168.2.30
+#   eth1 = 10.5.0.171  -> NVR-kanaal 2 = camera 192.168.2.11
+# (De schema-check staat twee camera's op één host toe zolang de POORTEN verschillen, maar Protect
+#  neemt geen poort aan — vandaar twee adressen.)
 #
 # CREDENTIALS staan NIET in deze config: bij adoptie in Protect vul je het NVR-account in
 # (admin + wachtwoord); de bridge forwardt de RTSP/snapshot-verbinding byte-voor-byte door.
 #
-# NETWERK: host-modus (geen ports-mapping). De virtuele camera luistert op het LXC-IP
-# 10.5.0.163 — vandaar dat hostname hieronder hard op dat adres staat. Dit is GEEN browser-app,
-# dus de host-poort-80-conventie geldt hier niet: de ONVIF-server staat op 80 zodat Protect's
-# "third-party camera"-onboarding (IP + login, poort optioneel) hem direct vindt.
+# NETWERK: host-modus (geen ports-mapping). Dit is GEEN browser-app, dus de host-poort-80-conventie
+# geldt hier niet: elke virtuele camera bindt zijn eigen adres op poort 80.
 
 services:
   rtsp2unifi-protect:
@@ -45,9 +50,10 @@ configs:
   onvif_yaml:
     content: |
       onvif:
-        - name: Camera ouders (NVR kanaal 3)
+        # --- NVR-kanaal 3 = camera 192.168.2.30 (Dahua PTZ 2MP) ---
+        - name: Camera 192.168.2.30 (NVR kanaal 3)
           uuid: 9b9dcaf2-cf8c-4074-82f7-107d1c54b7ed
-          hostname: 10.5.0.163          # = LXC-IP; adres waarop de virtuele camera luistert
+          hostname: 10.5.0.163          # eth0 van het LXC
           manufacturer: Dahua
           model: NVR2104-4KS2
           ports:
@@ -72,6 +78,38 @@ configs:
             quality: 1
           target:
             hostname: 192.168.2.251      # de Dahua NVR (stabiel via 37777 -> herserveert kanaal 3)
+            ports:
+              rtsp: 554
+              snapshot: 80
+
+        # --- NVR-kanaal 2 = camera 192.168.2.11 (XM530, ONVIF) ---
+        - name: Camera 192.168.2.11 (NVR kanaal 2)
+          uuid: 849a2cd6-c8c8-42dd-83c6-4ba98570db67
+          hostname: 10.5.0.171          # eth1 van het LXC
+          manufacturer: Xiongmai
+          model: XM530_R80X20-PQ_8M
+          ports:
+            server: 80
+            rtsp: 8554
+            snapshot: 8580
+          highQuality:
+            rtsp: /cam/realmonitor?channel=2&subtype=0
+            snapshot: /cgi-bin/snapshot.cgi?channel=2
+            width: 1920
+            height: 1080
+            framerate: 12
+            bitrate: 4096
+            quality: 4
+          lowQuality:
+            rtsp: /cam/realmonitor?channel=2&subtype=1
+            snapshot: /cgi-bin/snapshot.cgi?channel=2
+            width: 640
+            height: 360
+            framerate: 13
+            bitrate: 512
+            quality: 1
+          target:
+            hostname: 192.168.2.251      # dezelfde NVR; kanaal 2
             ports:
               rtsp: 554
               snapshot: 80
