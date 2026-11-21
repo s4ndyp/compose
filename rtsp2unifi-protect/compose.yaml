@@ -14,7 +14,9 @@ name: rtsp2unifi-protect
 # TWEE VIRTUELE CAMERA'S, TWEE IP's: Protect vraagt alleen een IP (geen poort), dus elke virtuele
 # camera moet op poort 80 van een EIGEN adres staan. Het LXC heeft daarom twee netwerkinterfaces:
 #   eth0 = 10.5.0.163  -> NVR-kanaal 3 = camera 192.168.2.30
-#   eth1 = 10.5.0.171  -> NVR-kanaal 2 = camera 192.168.2.11
+#   eth1 = 10.5.0.63   -> NVR-kanaal 2 = camera 192.168.2.11
+# (Extra IP onder de 100, want Proxmox kent CT/VM-ID's vanaf 100 — zo kan een toekomstige CT
+#  nooit met dit adres botsen. 63 = 163 − 100, gekoppeld aan CT163.)
 # (De schema-check staat twee camera's op één host toe zolang de POORTEN verschillen, maar Protect
 #  neemt geen poort aan — vandaar twee adressen.)
 #
@@ -85,7 +87,7 @@ configs:
         # --- NVR-kanaal 2 = camera 192.168.2.11 (XM530, ONVIF) ---
         - name: Camera 192.168.2.11 (NVR kanaal 2)
           uuid: 849a2cd6-c8c8-42dd-83c6-4ba98570db67
-          hostname: 10.5.0.171          # eth1 van het LXC
+          hostname: 10.5.0.63           # eth1 van het LXC (extra IP < 100)
           manufacturer: Xiongmai
           model: XM530_R80X20-PQ_8M
           # Geen snapshot-poort: de NVR geeft voor kanaal 2 (en 1/4) 401 op snapshot.cgi,

@@ -32,7 +32,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | prometheus-grafana | Prometheus + Grafana (extern; metrics-TSDB + dashboard-UI, samen in één stack/LXC) | 80 → 3000 (Grafana); Prometheus 9090 → 9090 | images gepind (`prom/prometheus v3.16.0`, `grafana/grafana 13.3.1`), 2 volumes, **inline configs** (scrape-config + voorgprovisioneerde Prometheus-datasource + dashboard-provider met Syncthing-dashboard), verplichte stackvariabele `GF_ADMIN_PASSWORD` (Infisical map `/prometheus_grafana`) |
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
-| rtsp2unifi-protect | rtsp2unifi-protect (extern; virtuele ONVIF-camera die de Dahua-NVR-stream van de camera bij de ouders als ONVIF doorgeeft aan UniFi Protect) | geen browser-poort (host-netwerk) | image `ghcr.io/mz738/rtsp2unifi-protect:2.2.2` (gepind), **host-netwerk** (virtuele camera op LXC-IP `10.5.0.163`: ONVIF 80, RTSP 8554, snapshot 8580), inline config `onvif.yaml` (target = NVR `192.168.2.251` kanaal 3); géén credentials in de config (die vul je in Protect bij adoptie) |
+| rtsp2unifi-protect | rtsp2unifi-protect (extern; virtuele ONVIF-camera's die de Dahua-NVR-streams van de camera's bij de ouders als ONVIF doorgeven aan UniFi Protect) | geen browser-poort (host-netwerk) | image `ghcr.io/mz738/rtsp2unifi-protect:2.2.2` (gepind), **host-netwerk**, **twee virtuele camera's op twee IP's** (`10.5.0.163` = NVR-kanaal 3 / 192.168.2.30; `10.5.0.63` = NVR-kanaal 2 / 192.168.2.11 — extra IP < 100 omdat Proxmox-CT's vanaf 100 beginnen), ONVIF 80 / RTSP 8554 / snapshot 8580; inline config `onvif.yaml` (target = NVR `192.168.2.251`); géén credentials in de config (die vul je in Protect bij adoptie) |
 
 ## Diensten die níét op 80 kunnen (binnen één stack)
 
@@ -95,9 +95,10 @@ bindt zelf het LXC-IP op 80/8554/8580).
   opgeven (geen eigen RTSP-pad) en de camera bij de ouders (192.168.2.30) laat periodiek zijn
   HTTP/RTSP/ONVIF hangen (oude firmware). De Dahua NVR (192.168.2.251) praat via het stabiele
   37777-protocol en herserveert de stream als RTSP (kanaal 3); deze bridge presenteert díe stream als
-  ONVIF-apparaat. Protect adopteert de bridge (IP `10.5.0.163` + login) en praat zo met de NVR i.p.v.
-  met de happerende camera. **Host-netwerk**; de virtuele camera bindt het LXC-IP (config-`hostname`),
-  dus een IP-wijziging van de LXC vraagt een aanpassing in de inline `onvif.yaml`. Credentials staan
+  ONVIF-apparaat. Protect adopteert de bridge (IP + login) en praat zo met de NVR i.p.v.
+  met de happerende camera. **Host-netwerk**; elke virtuele camera bindt een eigen adres
+  (`10.5.0.163` = kanaal 3, `10.5.0.63` = kanaal 2), dus een IP-wijziging van de LXC vraagt een
+  aanpassing in de inline `onvif.yaml`. Credentials staan
   niet in de config maar worden door Protect meegestuurd (byte-voor-byte forward). Nieuwe versie:
   tag ophogen (`gh release list -R mZ738/rtsp2unifi-protect`) + redeploy.
 - **uptime-kotlin**: externe uptime-monitor (één Quarkus-image + Postgres). Vereist eigen
