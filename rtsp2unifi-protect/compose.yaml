@@ -88,13 +88,14 @@ configs:
           hostname: 10.5.0.171          # eth1 van het LXC
           manufacturer: Xiongmai
           model: XM530_R80X20-PQ_8M
+          # Geen snapshot-poort: de NVR geeft voor kanaal 2 (en 1/4) 401 op snapshot.cgi,
+          # alleen kanaal 3 levert een JPEG. Zonder snapshot-poort serveert de bridge een
+          # placeholder-thumbnail; de stream zelf werkt gewoon.
           ports:
             server: 80
             rtsp: 8554
-            snapshot: 8580
           highQuality:
             rtsp: /cam/realmonitor?channel=2&subtype=0
-            snapshot: /cgi-bin/snapshot.cgi?channel=2
             width: 1920
             height: 1080
             framerate: 12
@@ -102,7 +103,6 @@ configs:
             quality: 4
           lowQuality:
             rtsp: /cam/realmonitor?channel=2&subtype=1
-            snapshot: /cgi-bin/snapshot.cgi?channel=2
             width: 640
             height: 360
             framerate: 13
