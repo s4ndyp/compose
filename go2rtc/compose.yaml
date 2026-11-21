@@ -46,11 +46,13 @@ configs:
         level: info
 
       streams:
-        # Per Protect-camera één regel. Bron = de UNVR (10.3.0.30):
-        #   rtsp://10.3.0.30:7447/<token>          <- platte RTSP, dit gebruikt go2rtc
-        #   rtsps://10.3.0.30:7441/<token>?enableSrtp  <- de link uit Protect zelf (TLS+SRTP)
+        # Bron = de UNVR (10.3.0.30) op poort 7447: platte RTSP met het token uit Protect.
         # De tokens komen uit Protect: camera -> Instellingen -> Geavanceerd ->
-        # "Secure RTSPS Output" aanzetten en de link kopieren.
+        # "Secure RTSPS Output" aanzetten, resolutie kiezen, link kopieren; daarna
+        # rtsps://<host>:7441/<token>?enableSrtp omzetten naar rtsp://<host>:7447/<token>.
         #
-        # voorbeeld:
-        #   voordeur: rtsp://10.3.0.30:7447/AbCdEf123456
+        # LET OP: UniFi levert HEVC (H.265) op ALLE resoluties (getest: 4K en 720p).
+        # Een browser kan dat niet afspelen, dus transcoderen we naar H.264. Dat is de
+        # enige reden dat hier een ffmpeg:-bron staat in plaats van een kale rtsp-URL;
+        # 720p kost ongeveer de helft van één core.
+        g6-turret: ffmpeg:rtsp://10.3.0.30:7447/hHzQ7KUxyAoiHKsH#video=h264
