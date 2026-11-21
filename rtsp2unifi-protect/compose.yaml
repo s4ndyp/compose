@@ -25,9 +25,10 @@ services:
     container_name: rtsp2unifi-protect
     restart: unless-stopped
     network_mode: host
-    # De image draait als non-root (`node`); poort 80 (<1024) vraagt deze capability.
-    cap_add:
-      - NET_BIND_SERVICE
+    # De image draait standaard als non-root (`node`), maar moet poort 80 (<1024) binden.
+    # Docker's NET_BIND_SERVICE-capability werkt niet voor een non-root proces (geen ambient
+    # caps), dus draaien we als root; de container is een simpele byte-forwarder in een eigen LXC.
+    user: "0:0"
     environment:
       LOG_FORMAT: json
     healthcheck:
