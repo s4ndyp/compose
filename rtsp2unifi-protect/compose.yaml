@@ -9,7 +9,7 @@ name: gp-camera-bridge
 #
 # DRIE CAMERA'S, DRIE IP's - 2 DIRECT, 1 VIA go2rtc (2026-11-22)
 #   eth0 = 10.5.0.163 -> 192.168.2.30  Dahua PTZ      DIRECT (camera verdraagt meerdere sessies)
-#   eth1 = 10.5.0.63  -> 192.168.2.11  Xiongmai XM530 VIA go2rtc (1 sessie naar de camera)
+#   eth1 = 10.5.0.63  -> 192.168.2.11  Xiongmai XM530  [TIJDELIJK UIT, A/B-test op CT173 camtest 22-11-2026]
 #   eth2 = 10.5.0.62  -> 192.168.2.28  Dahua 4MP      DIRECT
 # (Extra IP's onder de 100: Proxmox kent CT/VM-ID's vanaf 100, dus 63 = 163-100 en 62 = 163-101
 #  kunnen nooit met een toekomstige CT botsen.)
@@ -73,8 +73,6 @@ configs:
         listen: ":1984"
       rtsp:
         listen: ":8555"
-      streams:
-        cam: "rtsp://${CAM_USER:?CAM_USER ontbreekt in Infisical /camera-relay}:${CAM_PASS:?CAM_PASS ontbreekt in Infisical /camera-relay}@192.168.2.11:554/cam/realmonitor?channel=1&subtype=0"
 
   onvif_yaml:
     content: |
@@ -103,30 +101,6 @@ configs:
             ports:
               rtsp: 554
               snapshot: 80
-
-        # --- camera 192.168.2.11 (Xiongmai XM530) - via go2rtc, NIET via de NVR ---
-        # Zie de toelichting bovenaan: de NVR verliest deze camera periodiek. go2rtc houdt
-        # een sessie naar de camera en verdeelt het beeld; de NVR blijft voor opname/PTZ.
-        - name: Camera 192.168.2.11 (Xiongmai XM530)
-          uuid: 849a2cd6-c8c8-42dd-83c6-4ba98570db67
-          hostname: 10.5.0.63           # eth1 van het LXC (extra IP < 100)
-          manufacturer: Xiongmai
-          model: XM530_R80X20-PQ_8M
-          # Geen snapshot-poort: deze camera levert geen bruikbare snapshot-CGI aan de bridge.
-          ports:
-            server: 80
-            rtsp: 8554
-          highQuality:
-            rtsp: /cam
-            width: 1920
-            height: 1080
-            framerate: 25
-            bitrate: 4096
-            quality: 4
-          target:
-            hostname: 127.0.0.1          # go2rtc op dezelfde host
-            ports:
-              rtsp: 8555
 
         # --- camera 192.168.2.28 (Dahua IPC-HDBW3449E-AS-NI, 4MP) ---
         - name: Camera 192.168.2.28 (Dahua 4MP)
