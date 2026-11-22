@@ -4,7 +4,7 @@ name: camera-relay
 # camera 192.168.2.11 (Xiongmai XM530), die in Protect periodiek wegvalt.
 #
 # Test A: 10.5.0.173  -> bron = Dahua NVR 192.168.2.251 kanaal 2 (zoals de oude koppeling)
-# Test B: 10.5.0.90   -> bron = de camera zelf, RTSP 554, buiten de NVR om
+# Test B: 10.5.0.90   -> bron = de camera zelf, RTSP 554, buiten de NVR om  [TIJDELIJK UIT 22-11-2026]
 # Beide lopen door go2rtc (1 sessie per bron) en worden door dezelfde ONVIF-bridge
 # als twee aparte virtuele camera's aan Protect aangeboden.
 #
