@@ -1,41 +1,53 @@
 name: rtsp2unifi-protect
 
-# Externe stack (niet-s4ndyp): rtsp2unifi-protect — virtuele ONVIF-camera's die bestaande
-# RTSP-streams doorgeven aan UniFi Protect.
+# gp-camera-bridge (LXC 163) - virtuele ONVIF-camera's voor UniFi Protect.
 #
 # WAAROM DEZE STACK HIER STAAT
 # UniFi Protect neemt bij een third-party camera alleen ONVIF aan (IP + login, geen eigen
-# RTSP-pad). Deze bridge presenteert elke RTSP-stream als een ONVIF-apparaat waar Protect wél
-# mee overweg kan. De verbinding naar de echte bron is byte-voor-byte: niets wordt getranscodeerd.
+# RTSP-pad). Deze bridge presenteert elke RTSP-stream als een ONVIF-apparaat. De verbinding
+# naar de bron is byte-voor-byte: er wordt NIETS getranscodeerd of gebufferd.
 #
-# DRIE CAMERA'S, DRIE IP's — 2 DIRECT, 1 VIA DE NVR (2026-11-21)
-# De twee Dahua's (192.168.2.30 en 192.168.2.28) worden rechtstreeks op RTSP gepulld: die
-# serveren meerdere sessies zonder morren, en zo hangt Protect niet aan camera-ONVIF.
-# De Xiongmai (192.168.2.11) gaat via de Dahua NVR (kanaal 2): die camera kan maar één
-# RTSP-sessie aan en Protect vraagt er twee, dus de NVR moet de enige consumer zijn.
-# Zie de toelichting bij die entry.
+# DRIE CAMERA'S, DRIE IP's - 2 DIRECT, 1 VIA go2rtc (2026-11-22)
+#   eth0 = 10.5.0.163 -> 192.168.2.30  Dahua PTZ      DIRECT (camera verdraagt meerdere sessies)
+#   eth1 = 10.5.0.63  -> 192.168.2.11  Xiongmai XM530 VIA go2rtc (1 sessie naar de camera)
+#   eth2 = 10.5.0.62  -> 192.168.2.28  Dahua 4MP      DIRECT
+# (Extra IP's onder de 100: Proxmox kent CT/VM-ID's vanaf 100, dus 63 = 163-100 en 62 = 163-101
+#  kunnen nooit met een toekomstige CT botsen.)
 #
-# Protect vraagt alleen een IP (geen poort) → elke virtuele camera staat op poort 80 van een
-# EIGEN adres. Drie netwerkinterfaces op het LXC:
-#   eth0 = 10.5.0.163  -> camera 192.168.2.30  (Dahua PTZ DH-SD22204T-GN)
-#   eth1 = 10.5.0.63   -> camera 192.168.2.11  (Xiongmai XM530)
-#   eth2 = 10.5.0.62   -> camera 192.168.2.28  (Dahua IPC-HDBW3449E-AS-NI)
-# (Extra IP's onder de 100, want Proxmox kent CT/VM-ID's vanaf 100 — zo kan een toekomstige CT
-#  nooit met deze adressen botsen: 63 = 163 − 100, 62 = 163 − 101.)
+# WAAROM DE XIONGMAI NIET MEER VIA DE NVR LOOPT
+# De Dahua NVR (192.168.2.251) raakt zijn ONVIF-koppeling met deze camera periodiek ~10 minuten
+# kwijt: kanaal 2 leverde minutenlang geen bytes meer (max_idle liep op tot 190 s) terwijl de
+# RTSP-poort van de camera zelf 200 OK bleef antwoorden en een andere camera op dezelfde NVR
+# onafgebroken doorliep. Protect hing daardoor aan een bron die wegviel. Nu haalt go2rtc EEN
+# sessie bij de camera en verdeelt die; Protect mag twee sessies openen, de camera ziet er een.
+# De NVR blijft kanaal 2 gewoon gebruiken voor opname en PTZ - daar is niets aan veranderd.
 #
-# CREDENTIALS staan NIET in deze config: bij adoptie in Protect vul je per camera het EIGEN
-# account van die camera in (niet het NVR-account); de bridge forwardt de RTSP/snapshot-
-# verbinding byte-voor-byte door.
+# CREDENTIALS staan NIET in dit bestand. De twee Dahua's krijgen bij adoptie in Protect het
+# EIGEN account van die camera. Voor de Xiongmai leest go2rtc het wachtwoord uit Infisical
+# (/camera-relay via de Dockhand secret-provider); ontbreekt het, dan faalt de deploy luid.
 #
 # NETWERK: host-modus (geen ports-mapping). Dit is GEEN browser-app, dus de host-poort-80-
 # conventie geldt hier niet: elke virtuele camera bindt zijn eigen adres op poort 80.
 
 services:
+  # Re-publisher: haalt precies EEN RTSP-sessie bij de Xiongmai-camera en verdeelt die
+  # intern over alle afnemers (Protect's live- en 24/7-sessie).
+  go2rtc:
+    image: alexxit/go2rtc:1.9.15
+    container_name: camera-bridge-go2rtc
+    restart: unless-stopped
+    network_mode: host
+    configs:
+      - source: go2rtc_yaml
+        target: /config/go2rtc.yaml
+
   rtsp2unifi-protect:
     image: ghcr.io/mz738/rtsp2unifi-protect:2.2.2
     container_name: rtsp2unifi-protect
     restart: unless-stopped
     network_mode: host
+    depends_on:
+      - go2rtc
     # De image draait standaard als non-root (`node`), maar moet poort 80 (<1024) binden.
     # Docker's NET_BIND_SERVICE-capability werkt niet voor een non-root proces (geen ambient
     # caps), dus draaien we als root; de container is een simpele byte-forwarder in een eigen LXC.
@@ -53,6 +65,17 @@ services:
         target: /onvif.yaml
 
 configs:
+  go2rtc_yaml:
+    content: |
+      log:
+        level: info
+      api:
+        listen: ":1984"
+      rtsp:
+        listen: ":8555"
+      streams:
+        cam: "rtsp://${CAM_USER:?CAM_USER ontbreekt in Infisical /camera-relay}:${CAM_PASS:?CAM_PASS ontbreekt in Infisical /camera-relay}@192.168.2.11:554/cam/realmonitor?channel=1&subtype=0"
+
   onvif_yaml:
     content: |
       onvif:
@@ -81,6 +104,30 @@ configs:
               rtsp: 554
               snapshot: 80
 
+        # --- camera 192.168.2.11 (Xiongmai XM530) - via go2rtc, NIET via de NVR ---
+        # Zie de toelichting bovenaan: de NVR verliest deze camera periodiek. go2rtc houdt
+        # een sessie naar de camera en verdeelt het beeld; de NVR blijft voor opname/PTZ.
+        - name: Camera 192.168.2.11 (Xiongmai XM530)
+          uuid: 849a2cd6-c8c8-42dd-83c6-4ba98570db67
+          hostname: 10.5.0.63           # eth1 van het LXC (extra IP < 100)
+          manufacturer: Xiongmai
+          model: XM530_R80X20-PQ_8M
+          # Geen snapshot-poort: deze camera levert geen bruikbare snapshot-CGI aan de bridge.
+          ports:
+            server: 80
+            rtsp: 8554
+          highQuality:
+            rtsp: /cam
+            width: 1920
+            height: 1080
+            framerate: 25
+            bitrate: 4096
+            quality: 4
+          target:
+            hostname: 127.0.0.1          # go2rtc op dezelfde host
+            ports:
+              rtsp: 8555
+
         # --- camera 192.168.2.28 (Dahua IPC-HDBW3449E-AS-NI, 4MP) ---
         - name: Camera 192.168.2.28 (Dahua 4MP)
           uuid: 8dd000a5-3874-4b40-806e-7c629e21d98e
@@ -88,7 +135,7 @@ configs:
           manufacturer: Dahua
           model: IPC-HDBW3449E-AS-NI
           # Let op: deze camera stond op H.265. Protect neemt bij third-party camera's alleen
-          # H.264 aan, dus op 2026-11-21 zijn main- én substream naar H.264 omgezet (setConfig).
+          # H.264 aan, dus op 2026-11-21 zijn main- en substream naar H.264 omgezet (setConfig).
           ports:
             server: 80
             rtsp: 8554
