@@ -65,6 +65,8 @@ services:
         target: /etc/grafana/provisioning/dashboards/syncthing.yaml
       - source: grafana_syncthing_dashboard
         target: /etc/grafana/dashboards/syncthing.json
+      - source: grafana_unas_dashboard
+        target: /etc/grafana/dashboards/unas.json
     environment:
       TZ: Europe/Amsterdam
       GF_SECURITY_ADMIN_USER: admin
@@ -182,7 +184,7 @@ configs:
       providers:
         - name: syncthing
           orgId: 1
-          folder: Syncthing
+          folder: Homelab
           type: file
           disableDeletion: false
           updateIntervalSeconds: 30
@@ -1716,3 +1718,675 @@ configs:
           }
         ]
       }
+
+  # Het UNAS/unpoller-dashboard (uid unas-unpoller): pool, RAID-bescherming,
+  # schijfgezondheid/-temperatuur, shares, CPU/geheugen/netwerk van de NAS.
+  grafana_unas_dashboard:
+    content: |
+        {
+          "uid": "unas-unpoller",
+          "title": "UNAS (unpoller)",
+          "tags": [
+            "unas",
+            "unpoller",
+            "homelab"
+          ],
+          "timezone": "browser",
+          "editable": true,
+          "graphTooltip": 1,
+          "refresh": "1m",
+          "schemaVersion": 39,
+          "version": 0,
+          "time": {
+            "from": "now-6h",
+            "to": "now"
+          },
+          "templating": {
+            "list": []
+          },
+          "annotations": {
+            "list": []
+          },
+          "panels": [
+            {
+              "id": 1,
+              "type": "stat",
+              "title": "Poolgebruik",
+              "gridPos": {
+                "h": 5,
+                "w": 4,
+                "x": 0,
+                "y": 0
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "percent",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 80
+                      },
+                      {
+                        "color": "red",
+                        "value": 90
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "100 * unpoller_unas_pool_usage_bytes / unpoller_unas_pool_capacity_bytes",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "{{pool_id}}"
+                }
+              ],
+              "options": {
+                "colorMode": "background",
+                "graphMode": "area",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ]
+                },
+                "textMode": "value_and_name"
+              }
+            },
+            {
+              "id": 2,
+              "type": "stat",
+              "title": "RAID-bescherming (huidig / verwacht)",
+              "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 4,
+                "y": 0
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 2
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_raid_group_current_protection",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "huidig"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_raid_group_expected_protection",
+                  "refId": "B",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "verwacht"
+                }
+              ],
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ]
+                },
+                "textMode": "value_and_name"
+              }
+            },
+            {
+              "id": 3,
+              "type": "stat",
+              "title": "Console online",
+              "gridPos": {
+                "h": 5,
+                "w": 3,
+                "x": 9,
+                "y": 0
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 1
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_device_present",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "{{name}}"
+                }
+              ],
+              "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ]
+                },
+                "textMode": "value_and_name"
+              }
+            },
+            {
+              "id": 4,
+              "type": "stat",
+              "title": "CPU-temperatuur",
+              "gridPos": {
+                "h": 5,
+                "w": 4,
+                "x": 12,
+                "y": 0
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "celsius",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 65
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_cpu_temperature_celsius",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "{{name}}"
+                }
+              ],
+              "options": {
+                "colorMode": "value",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ]
+                }
+              }
+            },
+            {
+              "id": 5,
+              "type": "stat",
+              "title": "Geheugen in gebruik",
+              "gridPos": {
+                "h": 5,
+                "w": 4,
+                "x": 16,
+                "y": 0
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "percent",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 80
+                      },
+                      {
+                        "color": "red",
+                        "value": 90
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "100 * (1 - unpoller_unas_memory_available_bytes / unpoller_unas_memory_total_bytes)",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "{{name}}"
+                }
+              ],
+              "options": {
+                "colorMode": "value",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ]
+                }
+              }
+            },
+            {
+              "id": 6,
+              "type": "stat",
+              "title": "CPU-belasting",
+              "gridPos": {
+                "h": 5,
+                "w": 4,
+                "x": 20,
+                "y": 0
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_cpu_load_percent",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "{{name}}"
+                }
+              ],
+              "options": {
+                "colorMode": "value",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ]
+                }
+              }
+            },
+            {
+              "id": 7,
+              "type": "timeseries",
+              "title": "Pool: gebruik vs capaciteit",
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 5
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "decbytes"
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_pool_usage_bytes",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "gebruik"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_pool_capacity_bytes",
+                  "refId": "B",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "capaciteit"
+                }
+              ],
+              "options": {
+                "legend": {
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "calcs": [
+                    "lastNotNull",
+                    "max"
+                  ]
+                },
+                "tooltip": {
+                  "mode": "multi"
+                }
+              }
+            },
+            {
+              "id": 8,
+              "type": "timeseries",
+              "title": "Netwerk (KB/s)",
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 5
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {}
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_receive_kbps",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "ontvangen"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_transmit_kbps",
+                  "refId": "B",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "verzonden"
+                }
+              ],
+              "options": {
+                "legend": {
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "calcs": [
+                    "lastNotNull",
+                    "max"
+                  ]
+                },
+                "tooltip": {
+                  "mode": "multi"
+                }
+              }
+            },
+            {
+              "id": 9,
+              "type": "timeseries",
+              "title": "Schijftemperatuur",
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 13
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "celsius"
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_temperature_celsius{state!=\"empty\"}",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "slot {{slot_id}} · {{model}}"
+                }
+              ],
+              "options": {
+                "legend": {
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "calcs": [
+                    "lastNotNull",
+                    "max"
+                  ]
+                },
+                "tooltip": {
+                  "mode": "multi"
+                }
+              }
+            },
+            {
+              "id": 10,
+              "type": "bargauge",
+              "title": "Share-gebruik",
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 13
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {},
+                  "unit": "decbytes"
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_share_usage_bytes",
+                  "refId": "A",
+                  "instant": false,
+                  "range": true,
+                  "legendFormat": "{{share_name}}"
+                }
+              ],
+              "options": {
+                "displayMode": "gradient",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ]
+                }
+              }
+            },
+            {
+              "id": 11,
+              "type": "table",
+              "title": "Schijfgezondheid",
+              "gridPos": {
+                "h": 9,
+                "w": 24,
+                "x": 0,
+                "y": 21
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {}
+                },
+                "overrides": []
+              },
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_health_score",
+                  "refId": "A",
+                  "instant": true,
+                  "range": false,
+                  "legendFormat": "health"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_bad_sectors",
+                  "refId": "B",
+                  "instant": true,
+                  "range": false,
+                  "legendFormat": "bad sectors"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_uncorrectable_sectors",
+                  "refId": "C",
+                  "instant": true,
+                  "range": false,
+                  "legendFormat": "uncorrectable"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_smart_read_errors",
+                  "refId": "D",
+                  "instant": true,
+                  "range": false,
+                  "legendFormat": "smart read errors"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_power_on_hours",
+                  "refId": "E",
+                  "instant": true,
+                  "range": false,
+                  "legendFormat": "power-on uren"
+                }
+              ],
+              "options": {
+                "showHeader": true
+              }
+            }
+          ]
+        }
