@@ -201,6 +201,7 @@ configs:
       {
         "uid": "syncthing-homelab",
         "title": "Syncthing",
+        "description": "Beide Syncthing-instanties: CT139 sync-naz en 10.5.0.134 ignis-syncthing.",
         "tags": [
           "syncthing",
           "homelab"
