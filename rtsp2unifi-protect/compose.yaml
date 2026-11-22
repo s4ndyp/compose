@@ -75,10 +75,6 @@ configs:
         listen: ":8555"
       streams:
         cam: "rtsp://${CAM_USER:?CAM_USER ontbreekt in Infisical /camera-relay}:${CAM_PASS:?CAM_PASS ontbreekt in Infisical /camera-relay}@192.168.2.11:554/cam/realmonitor?channel=1&subtype=0"
-        # Substreem 640x360. Let op: de XM530 negeert het Dahua-pad met subtype=1 (dat geeft
-        # alsnog 1080p); de echte substream zit alleen op deze XM-vorm, met de inloggegevens
-        # letterlijk in het pad.
-        cam_sub: "rtsp://${CAM_USER:?CAM_USER ontbreekt in Infisical /camera-relay}:${CAM_PASS:?CAM_PASS ontbreekt in Infisical /camera-relay}@192.168.2.11:554/user=${CAM_USER:?CAM_USER ontbreekt in Infisical /camera-relay}&password=${CAM_PASS:?CAM_PASS ontbreekt in Infisical /camera-relay}&channel=1&stream=1.sdp?real_stream"
 
   onvif_yaml:
     content: |
@@ -126,16 +122,6 @@ configs:
             height: 1080
             framerate: 25
             bitrate: 4096
-            quality: 4
-          # Tweede, lichte profiel voor Protect's live-/wall-weergave (640x360 uit de camera).
-          # Protect houdt bij een third-party camera beide profielen open; zonder dit profiel
-          # trekt het voor BEIDE sessies de 1080p-mainstream.
-          lowQuality:
-            rtsp: /cam_sub
-            width: 640
-            height: 360
-            framerate: 25
-            bitrate: 512
             quality: 4
           target:
             hostname: 127.0.0.1          # go2rtc op dezelfde host
