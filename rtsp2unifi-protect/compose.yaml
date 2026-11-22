@@ -81,33 +81,6 @@ configs:
               rtsp: 554
               snapshot: 80
 
-        # --- camera 192.168.2.11 (Xiongmai XM530) ---
-        - name: Camera 192.168.2.11 (Xiongmai, via Dahua NVR)
-          uuid: 849a2cd6-c8c8-42dd-83c6-4ba98570db67
-          hostname: 10.5.0.63           # eth1 van het LXC (extra IP < 100)
-          manufacturer: Xiongmai
-          model: XM530_R80X20-PQ_8M
-          # LET OP: deze camera kan feitelijk maar ÉÉN RTSP-sessie aan. Protect opent er
-          # standaard twee (live + 24/7-opname) en dan laat de camera BEIDE vallen: kort beeld,
-          # weg, opnieuw. Daarom loopt deze ene camera via de Dahua NVR (kanaal 2), die het
-          # beeld intern verdeelt — de NVR is dan de enige consumer van de camera.
-          # Gevolg: in Protect vul je voor DEZE camera het NVR-account in, niet het camera-account.
-          # Geen snapshot-poort: de NVR geeft voor kanaal 2 een 401 op snapshot.cgi.
-          ports:
-            server: 80
-            rtsp: 8554
-          highQuality:
-            rtsp: /cam/realmonitor?channel=2&subtype=0
-            width: 1920
-            height: 1080
-            framerate: 12
-            bitrate: 2560
-            quality: 4
-          target:
-            hostname: 192.168.2.251       # de Dahua NVR (kanaal 2), NIET de camera zelf
-            ports:
-              rtsp: 554
-
         # --- camera 192.168.2.28 (Dahua IPC-HDBW3449E-AS-NI, 4MP) ---
         - name: Camera 192.168.2.28 (Dahua 4MP)
           uuid: 8dd000a5-3874-4b40-806e-7c629e21d98e
