@@ -2310,11 +2310,10 @@ configs:
             },
             {
               "id": 11,
-              "type": "table",
-              "title": "Schijven (alle schijven in één tabel)",
-              "description": "Eén regel per schijf: health-score, temperatuur, fouten en levensduur. Lege slots zijn weggelaten.",
+              "type": "stat",
+              "title": "Schijf-health per schijf",
               "gridPos": {
-                "h": 10,
+                "h": 6,
                 "w": 24,
                 "x": 0,
                 "y": 21
@@ -2333,394 +2332,257 @@ configs:
                   "refId": "A",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "__auto"
-                },
-                {
-                  "datasource": {
-                    "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
+                  "legendFormat": "{{slot_id}} · {{model}}"
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "none",
+                  "color": {
+                    "mode": "thresholds"
                   },
-                  "expr": "unpoller_unas_disk_temperature_celsius{state!=\"empty\"}",
-                  "refId": "B",
-                  "instant": true,
-                  "range": false,
-                  "legendFormat": "__auto"
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "orange",
+                        "value": 3
+                      },
+                      {
+                        "color": "green",
+                        "value": 4
+                      }
+                    ]
+                  },
+                  "mappings": []
                 },
+                "overrides": []
+              },
+              "options": {
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "textMode": "value_and_name",
+                "wideLayout": true,
+                "orientation": "auto",
+                "percentChangeColorMode": "standard"
+              },
+              "description": "Health-score per schijf, 0 = slecht / 5 = goed. Alle schijven naast elkaar."
+            },
+            {
+              "id": 12,
+              "type": "stat",
+              "title": "Bad sectors",
+              "gridPos": {
+                "h": 6,
+                "w": 8,
+                "x": 0,
+                "y": 27
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "targets": [
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
                   "expr": "unpoller_unas_disk_bad_sectors{state!=\"empty\"}",
-                  "refId": "C",
+                  "refId": "A",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "__auto"
+                  "legendFormat": "slot {{slot_id}}"
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "none",
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "mappings": []
                 },
+                "overrides": []
+              },
+              "options": {
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "textMode": "value_and_name",
+                "wideLayout": true,
+                "orientation": "auto",
+                "percentChangeColorMode": "standard"
+              },
+              "description": "Aantal slechte sectoren per schijf; groen = 0."
+            },
+            {
+              "id": 13,
+              "type": "stat",
+              "title": "Uncorrectable sectors",
+              "gridPos": {
+                "h": 6,
+                "w": 8,
+                "x": 8,
+                "y": 27
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "targets": [
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
                   "expr": "unpoller_unas_disk_uncorrectable_sectors{state!=\"empty\"}",
-                  "refId": "D",
+                  "refId": "A",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "__auto"
+                  "legendFormat": "slot {{slot_id}}"
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "none",
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "mappings": []
                 },
+                "overrides": []
+              },
+              "options": {
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "textMode": "value_and_name",
+                "wideLayout": true,
+                "orientation": "auto",
+                "percentChangeColorMode": "standard"
+              },
+              "description": "Onherstelbare sectoren per schijf; groen = 0."
+            },
+            {
+              "id": 14,
+              "type": "stat",
+              "title": "SMART read-errors",
+              "gridPos": {
+                "h": 6,
+                "w": 8,
+                "x": 16,
+                "y": 27
+              },
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "targets": [
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
                   "expr": "unpoller_unas_disk_smart_read_errors{state!=\"empty\"}",
-                  "refId": "E",
+                  "refId": "A",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "__auto"
-                },
-                {
-                  "datasource": {
-                    "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
-                  },
-                  "expr": "unpoller_unas_disk_power_on_hours{state!=\"empty\"}",
-                  "refId": "F",
-                  "instant": true,
-                  "range": false,
-                  "legendFormat": "__auto"
-                },
-                {
-                  "datasource": {
-                    "type": "prometheus",
-                    "uid": "PBFA97CFB590B2093"
-                  },
-                  "expr": "unpoller_unas_disk_size_bytes{state!=\"empty\"}",
-                  "refId": "G",
-                  "instant": true,
-                  "range": false,
-                  "legendFormat": "__auto"
-                }
-              ],
-              "transformations": [
-                {
-                  "id": "joinByField",
-                  "options": {
-                    "byField": "slot_id",
-                    "mode": "outer"
-                  }
-                },
-                {
-                  "id": "organize",
-                  "options": {
-                    "excludeByName": {
-                      "Time": true,
-                      "name": true,
-                      "source": true,
-                      "pool_id": true,
-                      "disk_type": true
-                    },
-                    "renameByName": {
-                      "slot_id": "Slot",
-                      "model": "Model",
-                      "serial": "Serienummer",
-                      "state": "Status",
-                      "Value #A": "Health (0-5)",
-                      "Value #B": "Temp (°C)",
-                      "Value #C": "Bad sectors",
-                      "Value #D": "Uncorrectable",
-                      "Value #E": "SMART errors",
-                      "Value #F": "Power-on (uur)",
-                      "Value #G": "Grootte"
-                    }
-                  }
-                },
-                {
-                  "id": "sortBy",
-                  "options": {
-                    "sort": [
-                      {
-                        "field": "Slot",
-                        "desc": false
-                      }
-                    ]
-                  }
+                  "legendFormat": "slot {{slot_id}}"
                 }
               ],
               "fieldConfig": {
                 "defaults": {
-                  "custom": {
-                    "align": "auto"
-                  }
+                  "unit": "none",
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "mappings": []
                 },
-                "overrides": [
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Health (0-5)"
-                    },
-                    "properties": [
-                      {
-                        "id": "thresholds",
-                        "value": {
-                          "mode": "absolute",
-                          "steps": [
-                            {
-                              "color": "red",
-                              "value": null
-                            },
-                            {
-                              "color": "orange",
-                              "value": 3
-                            },
-                            {
-                              "color": "green",
-                              "value": 4
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "id": "custom.cellOptions",
-                        "value": {
-                          "type": "color-background",
-                          "mode": "basic"
-                        }
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 110
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Bad sectors"
-                    },
-                    "properties": [
-                      {
-                        "id": "thresholds",
-                        "value": {
-                          "mode": "absolute",
-                          "steps": [
-                            {
-                              "color": "green",
-                              "value": null
-                            },
-                            {
-                              "color": "red",
-                              "value": 1
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "id": "custom.cellOptions",
-                        "value": {
-                          "type": "color-text"
-                        }
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 130
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Uncorrectable"
-                    },
-                    "properties": [
-                      {
-                        "id": "thresholds",
-                        "value": {
-                          "mode": "absolute",
-                          "steps": [
-                            {
-                              "color": "green",
-                              "value": null
-                            },
-                            {
-                              "color": "red",
-                              "value": 1
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "id": "custom.cellOptions",
-                        "value": {
-                          "type": "color-text"
-                        }
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 130
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "SMART errors"
-                    },
-                    "properties": [
-                      {
-                        "id": "thresholds",
-                        "value": {
-                          "mode": "absolute",
-                          "steps": [
-                            {
-                              "color": "green",
-                              "value": null
-                            },
-                            {
-                              "color": "red",
-                              "value": 1
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "id": "custom.cellOptions",
-                        "value": {
-                          "type": "color-text"
-                        }
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 130
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Temp (°C)"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "celsius"
-                      },
-                      {
-                        "id": "thresholds",
-                        "value": {
-                          "mode": "absolute",
-                          "steps": [
-                            {
-                              "color": "green",
-                              "value": null
-                            },
-                            {
-                              "color": "orange",
-                              "value": 45
-                            },
-                            {
-                              "color": "red",
-                              "value": 55
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "id": "custom.cellOptions",
-                        "value": {
-                          "type": "color-text"
-                        }
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 100
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Power-on (uur)"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "h"
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 120
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Grootte"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "decbytes"
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 110
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Status"
-                    },
-                    "properties": [
-                      {
-                        "id": "mappings",
-                        "value": [
-                          {
-                            "type": "value",
-                            "options": {
-                              "optimal": {
-                                "text": "optimal",
-                                "color": "green",
-                                "index": 0
-                              },
-                              "empty": {
-                                "text": "leeg",
-                                "color": "text",
-                                "index": 1
-                              }
-                            }
-                          }
-                        ]
-                      },
-                      {
-                        "id": "custom.width",
-                        "value": 100
-                      }
-                    ]
-                  }
-                ]
+                "overrides": []
               },
               "options": {
-                "showHeader": true,
-                "cellHeight": "sm",
-                "footer": {
-                  "show": false,
-                  "reducer": [
-                    "sum"
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
                   ],
-                  "fields": [],
-                  "countRows": false
+                  "fields": "",
+                  "values": false
                 },
-                "sortBy": [
-                  {
-                    "displayName": "Slot",
-                    "desc": false
-                  }
-                ]
-              }
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "textMode": "value_and_name",
+                "wideLayout": true,
+                "orientation": "auto",
+                "percentChangeColorMode": "standard"
+              },
+              "description": "SMART read-error-teller per schijf; groen = 0."
             }
           ]
         }
