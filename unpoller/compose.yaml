@@ -21,3 +21,13 @@ services:
       # geen InfluxDB-output; alleen Prometheus
       UP_INFLUXDB_DISABLE: "true"
       UP_POLLER_QUIET: "true"
+
+      # --- UNAS Pro (UniFi Drive) ----------------------------------------------
+      # Opslag-metrieken via de Drive-API van de NAS, met een eigen LOKAAL account
+      # ('unpoller', aangemaakt in Drive -> Admin & Users). De plugin is opt-in:
+      # zonder UP_UNAS_ENABLE + minstens één device doet hij helemaal niets.
+      UP_UNAS_ENABLE: "true"
+      UP_UNAS_DEVICE_0_URL: "https://10.1.1.1"
+      UP_UNAS_DEVICE_0_USER: "unpoller"
+      UP_UNAS_DEVICE_0_PASS: "${UNAS_POLLER_PASSWORD:?zet UNAS_POLLER_PASSWORD in Infisical /unpoller}"
+      UP_UNAS_DEVICE_0_VERIFY_SSL: "false"
