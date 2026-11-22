@@ -1,4 +1,4 @@
-name: rtsp2unifi-protect
+name: gp-camera-bridge
 
 # gp-camera-bridge (LXC 163) - virtuele ONVIF-camera's voor UniFi Protect.
 #
