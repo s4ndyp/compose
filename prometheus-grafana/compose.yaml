@@ -153,6 +153,13 @@ configs:
               labels:
                 instance: syncthing-ignis
 
+        # unpoller (CT156): UniFi-controller (Network API) + UNAS Pro (UniFi Drive)
+        # in één exporter; /metrics op 9130. UNAS via een lokaal Drive-account.
+        - job_name: unpoller
+          scrape_interval: 60s
+          static_configs:
+            - targets: ["10.5.0.156:9130"]
+
   grafana_datasource:
     content: |
       apiVersion: 1
