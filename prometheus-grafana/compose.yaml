@@ -2311,9 +2311,10 @@ configs:
             {
               "id": 11,
               "type": "table",
-              "title": "Schijfgezondheid",
+              "title": "Schijven (alle schijven in één tabel)",
+              "description": "Eén regel per schijf: health-score, temperatuur, fouten en levensduur. Lege slots zijn weggelaten.",
               "gridPos": {
-                "h": 9,
+                "h": 10,
                 "w": 24,
                 "x": 0,
                 "y": 21
@@ -2322,71 +2323,403 @@ configs:
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "fieldConfig": {
-                "defaults": {
-                  "custom": {}
-                },
-                "overrides": []
-              },
               "targets": [
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
-                  "expr": "unpoller_unas_disk_health_score",
+                  "expr": "unpoller_unas_disk_health_score{state!=\"empty\"}",
                   "refId": "A",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "health"
+                  "legendFormat": "__auto"
                 },
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
-                  "expr": "unpoller_unas_disk_bad_sectors",
+                  "expr": "unpoller_unas_disk_temperature_celsius{state!=\"empty\"}",
                   "refId": "B",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "bad sectors"
+                  "legendFormat": "__auto"
                 },
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
-                  "expr": "unpoller_unas_disk_uncorrectable_sectors",
+                  "expr": "unpoller_unas_disk_bad_sectors{state!=\"empty\"}",
                   "refId": "C",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "uncorrectable"
+                  "legendFormat": "__auto"
                 },
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
-                  "expr": "unpoller_unas_disk_smart_read_errors",
+                  "expr": "unpoller_unas_disk_uncorrectable_sectors{state!=\"empty\"}",
                   "refId": "D",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "smart read errors"
+                  "legendFormat": "__auto"
                 },
                 {
                   "datasource": {
                     "type": "prometheus",
                     "uid": "PBFA97CFB590B2093"
                   },
-                  "expr": "unpoller_unas_disk_power_on_hours",
+                  "expr": "unpoller_unas_disk_smart_read_errors{state!=\"empty\"}",
                   "refId": "E",
                   "instant": true,
                   "range": false,
-                  "legendFormat": "power-on uren"
+                  "legendFormat": "__auto"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_power_on_hours{state!=\"empty\"}",
+                  "refId": "F",
+                  "instant": true,
+                  "range": false,
+                  "legendFormat": "__auto"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                  },
+                  "expr": "unpoller_unas_disk_size_bytes{state!=\"empty\"}",
+                  "refId": "G",
+                  "instant": true,
+                  "range": false,
+                  "legendFormat": "__auto"
                 }
               ],
+              "transformations": [
+                {
+                  "id": "joinByField",
+                  "options": {
+                    "byField": "slot_id",
+                    "mode": "outer"
+                  }
+                },
+                {
+                  "id": "organize",
+                  "options": {
+                    "excludeByName": {
+                      "Time": true,
+                      "name": true,
+                      "source": true,
+                      "pool_id": true,
+                      "disk_type": true
+                    },
+                    "renameByName": {
+                      "slot_id": "Slot",
+                      "model": "Model",
+                      "serial": "Serienummer",
+                      "state": "Status",
+                      "Value #A": "Health (0-5)",
+                      "Value #B": "Temp (°C)",
+                      "Value #C": "Bad sectors",
+                      "Value #D": "Uncorrectable",
+                      "Value #E": "SMART errors",
+                      "Value #F": "Power-on (uur)",
+                      "Value #G": "Grootte"
+                    }
+                  }
+                },
+                {
+                  "id": "sortBy",
+                  "options": {
+                    "sort": [
+                      {
+                        "field": "Slot",
+                        "desc": false
+                      }
+                    ]
+                  }
+                }
+              ],
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "align": "auto"
+                  }
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Health (0-5)"
+                    },
+                    "properties": [
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "color": "red",
+                              "value": null
+                            },
+                            {
+                              "color": "orange",
+                              "value": 3
+                            },
+                            {
+                              "color": "green",
+                              "value": 4
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background",
+                          "mode": "basic"
+                        }
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 110
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Bad sectors"
+                    },
+                    "properties": [
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "color": "green",
+                              "value": null
+                            },
+                            {
+                              "color": "red",
+                              "value": 1
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-text"
+                        }
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 130
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Uncorrectable"
+                    },
+                    "properties": [
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "color": "green",
+                              "value": null
+                            },
+                            {
+                              "color": "red",
+                              "value": 1
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-text"
+                        }
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 130
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "SMART errors"
+                    },
+                    "properties": [
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "color": "green",
+                              "value": null
+                            },
+                            {
+                              "color": "red",
+                              "value": 1
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-text"
+                        }
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 130
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Temp (°C)"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "celsius"
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "color": "green",
+                              "value": null
+                            },
+                            {
+                              "color": "orange",
+                              "value": 45
+                            },
+                            {
+                              "color": "red",
+                              "value": 55
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-text"
+                        }
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Power-on (uur)"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "h"
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 120
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Grootte"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "decbytes"
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 110
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Status"
+                    },
+                    "properties": [
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "type": "value",
+                            "options": {
+                              "optimal": {
+                                "text": "optimal",
+                                "color": "green",
+                                "index": 0
+                              },
+                              "empty": {
+                                "text": "leeg",
+                                "color": "text",
+                                "index": 1
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 100
+                      }
+                    ]
+                  }
+                ]
+              },
               "options": {
-                "showHeader": true
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                  "show": false,
+                  "reducer": [
+                    "sum"
+                  ],
+                  "fields": [],
+                  "countRows": false
+                },
+                "sortBy": [
+                  {
+                    "displayName": "Slot",
+                    "desc": false
+                  }
+                ]
               }
             }
           ]
