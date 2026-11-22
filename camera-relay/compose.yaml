@@ -1,0 +1,75 @@
+name: camera-relay
+
+# Vervangt de directe koppeling van UniFi Protect aan de Dahua NVR voor camera
+# 192.168.2.11 (Xiongmai XM530). Reden: de NVR raakt zijn ONVIF-koppeling met deze
+# camera minutenlang kwijt (gemeten: 10 min stil op kanaal 2, terwijl de RTSP-laag
+# van de camera zelf 200 OK bleef antwoorden). Protect hing daardoor aan een bron
+# die periodiek wegviel.
+#
+# Opzet: go2rtc haalt EEN sessie bij de camera en verdeelt die intern; de
+# ONVIF-bridge presenteert dat als een virtuele camera voor Protect. Protect opent
+# 2 sessies per camera (live + 24/7), maar de camera ziet er altijd maar 1.
+#
+# De NVR blijft kanaal 2 gewoon gebruiken voor opname en PTZ - daar raken we niets aan.
+#
+# IP's: bridge/ONVIF op 10.5.0.90 (eth1 van CT173, extra adres < 100), eth0 = 10.5.0.173.
+# Credentials komen uit Infisical via de Dockhand secret-provider (DOCKHAND_SECRET_SELECTOR
+# = /camera-relay); ze staan dus niet in dit bestand.
+
+configs:
+  go2rtc.yaml:
+    content: |
+      log:
+        level: info
+      api:
+        listen: ":1984"
+      rtsp:
+        listen: ":8555"
+      streams:
+        cam: "rtsp://${CAM_USER:?CAM_USER ontbreekt in Infisical /camera-relay}:${CAM_PASS:?CAM_PASS ontbreekt in Infisical /camera-relay}@192.168.2.11:554/cam/realmonitor?channel=1&subtype=0"
+  onvif.yaml:
+    content: |
+      onvif:
+        - name: Camera 192.168.2.11 (Xiongmai, direct)
+          uuid: 7c3d8f21-4a56-4e8b-b0c9-1d5e6f7a8b02
+          hostname: 10.5.0.90
+          manufacturer: Xiongmai
+          model: XM530_R80X20-PQ_8M
+          ports:
+            server: 80
+            rtsp: 8554
+          highQuality:
+            rtsp: /cam
+            width: 1920
+            height: 1080
+            framerate: 25
+            bitrate: 4096
+            quality: 4
+          target:
+            hostname: 127.0.0.1
+            ports:
+              rtsp: 8555
+      metrics:
+        port: 9180
+
+services:
+  go2rtc:
+    image: alexxit/go2rtc:1.9.15
+    container_name: camera-relay-go2rtc
+    network_mode: host
+    restart: unless-stopped
+    configs:
+      - source: go2rtc.yaml
+        target: /config/go2rtc.yaml
+
+  bridge:
+    image: ghcr.io/mz738/rtsp2unifi-protect:2.2.2
+    container_name: camera-relay-bridge
+    network_mode: host
+    restart: unless-stopped
+    user: "0:0"
+    depends_on:
+      - go2rtc
+    configs:
+      - source: onvif.yaml
+        target: /onvif.yaml
