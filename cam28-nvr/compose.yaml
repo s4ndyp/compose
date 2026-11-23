@@ -1,0 +1,66 @@
+name: cam28-nvr
+
+# CT175: Dahua 4MP 192.168.2.28 (Tuin) via de NVR, kanaal 4.
+# Opzet identiek aan CT173 'camtest': go2rtc haalt ÉÉN sessie bij de Dahua NVR
+# (192.168.2.251) op kanaal 4 en de ONVIF-bridge presenteert dat als eigen virtuele
+# camera voor UniFi Protect op 10.5.0.175:80. Protect mag zoveel sessies openen als het wil;
+# de NVR ziet er altijd één. De camera zelf wordt hier NIET rechtstreeks benaderd.
+# Credentials komen uit Infisical /camera-relay via de Dockhand secret-provider.
+
+configs:
+  go2rtc.yaml:
+    content: |
+      log:
+        level: info
+      api:
+        listen: ":1984"
+      rtsp:
+        listen: ":8555"
+      streams:
+        cam: "rtsp://${NVR_USER:?NVR_USER ontbreekt in Infisical /camera-relay}:${NVR_PASS:?NVR_PASS ontbreekt in Infisical /camera-relay}@192.168.2.251:554/cam/realmonitor?channel=4&subtype=0"
+  onvif.yaml:
+    content: |
+      onvif:
+        - name: Camera 192.168.2.28 (Dahua 4MP Tuin, via NVR)
+          uuid: b27e5d91-3c48-4f16-8e52-7a91d0c4b623
+          hostname: 10.5.0.175
+          manufacturer: Dahua
+          model: IPC-HDBW3449E-AS-NI
+          ports:
+            server: 80
+            rtsp: 8554
+          highQuality:
+            rtsp: /cam
+            width: 2688
+            height: 1520
+            framerate: 25
+            bitrate: 1536
+            quality: 4
+          target:
+            hostname: 127.0.0.1
+            ports:
+              rtsp: 8555
+      metrics:
+        port: 9180
+
+services:
+  go2rtc:
+    image: alexxit/go2rtc:1.9.15
+    container_name: cam28-nvr-go2rtc
+    network_mode: host
+    restart: unless-stopped
+    configs:
+      - source: go2rtc.yaml
+        target: /config/go2rtc.yaml
+
+  bridge:
+    image: ghcr.io/mz738/rtsp2unifi-protect:2.2.2
+    container_name: cam28-nvr-bridge
+    network_mode: host
+    restart: unless-stopped
+    user: "0:0"
+    depends_on:
+      - go2rtc
+    configs:
+      - source: onvif.yaml
+        target: /onvif.yaml
