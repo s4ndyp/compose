@@ -162,6 +162,15 @@ configs:
           static_configs:
             - targets: ["10.5.0.156:9130"]
 
+        # Hermes-VM155 (10.5.0.155): node_exporter als systemd-service op :9100
+        # (geïnstalleerd 23-11-2026, v1.13.1). Levert CPU/RAM/load/fs/net/temp van
+        # de machine die Hermes zelf draait.
+        - job_name: hermes
+          static_configs:
+            - targets: ["10.5.0.155:9100"]
+              labels:
+                instance: hermes-vm155
+
   grafana_datasource:
     content: |
       apiVersion: 1
