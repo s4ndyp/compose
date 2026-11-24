@@ -171,6 +171,22 @@ configs:
               labels:
                 instance: hermes-vm155
 
+        # Home Assistant (VM 102, 10.1.2.2:8123): native /api/prometheus uit de
+        # `prometheus:`-integratie in configuration.yaml. Die exporteert voorlopig
+        # ALLEEN de OpenRouter-entiteiten (filter.include_entities); uitbreiden =
+        # daar entity-id's toevoegen + HA herstarten. Endpoint vereist een token
+        # (long-lived, HA_PROM_TOKEN in Infisical /prometheus_grafana).
+        - job_name: homeassistant
+          metrics_path: /api/prometheus
+          scrape_interval: 60s
+          authorization:
+            type: Bearer
+            credentials: ${HA_PROM_TOKEN:?zet HA_PROM_TOKEN in Infisical /prometheus_grafana}
+          static_configs:
+            - targets: ["10.1.2.2:8123"]
+              labels:
+                instance: homeassistant
+
   grafana_datasource:
     content: |
       apiVersion: 1
