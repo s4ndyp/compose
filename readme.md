@@ -9,7 +9,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 > **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
 > Homarr, Pocket ID, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
-> God's Eye View, Paperless-ngx, rtsp2unifi-protect en de Forgejo-runner).
+> God's Eye View, Paperless-ngx, rtsp2unifi-protect, ntfy en de Forgejo-runner).
 >
 > De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
 > `quicknote`, `sync-ms`, `dyncompare`, `snapzilla`, `supermemory-dashboard`, `assetvault`, `backai`,
@@ -33,6 +33,7 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | dashbrr | Dashbrr (extern dashboard + Postgres) | 8080 → 8080 (eigen opzet, wijkt af van de 80-norm; db 5432 publiek) | image x2 |
 | uptime-kotlin | UptimeKotlin (extern; Quarkus native + Postgres) | 80 → 8080; db intern | image x2, verplichte `.env`-variabelen (ENCRYPTION_MASTER_KEY, UPTIME_DB_PASSWORD) |
 | victorialogs | VictoriaLogs (extern; centrale logstore voor het hele homelab — LogsQL-query's + `vmui`-webUI, logs van alle hosts via de Loki-push-, jsonline- of Elasticsearch-ingest) | 80 → 9428 | image `v1.54.0` (gepind), volume `victorialogs_data`, retentie 30 dagen + harde schijfrem `-retention.maxDiskSpaceUsageBytes=15GiB`; **géén Pocket-ID-gate** (de shippers posten zonder browser-login naar `/insert/…`) |
+| ntfy | ntfy (extern; self-gehoste push-notificatiebus voor scripts, cronjobs en Home Assistant — Go + SQLite, berichtencache en attachments) | 80 → 80 | image `v2.38.2` (gepind), volumes `ntfy_cache` (cache + attachments, rem 5G) en `ntfy_data` (`user.db` = auth), **inline config** `/etc/ntfy/server.yml` (base-url, cache 24h, attachments 15MB/48h, `auth-default-access: deny-all`), users/tokens via de CLI (non-interactief met `NTFY_PASSWORD`); **géén Pocket-ID-gate** (clients en curl kunnen geen SSO) en géén Firebase/upstream |
 | rtsp2unifi-protect | rtsp2unifi-protect (extern; virtuele ONVIF-camera's die de Dahua-NVR-streams van de camera's bij de ouders als ONVIF doorgeven aan UniFi Protect) | geen browser-poort (host-netwerk) | image `ghcr.io/mz738/rtsp2unifi-protect:2.2.2` (gepind), **host-netwerk**, **twee virtuele camera's op twee IP's** (`10.5.0.163` = NVR-kanaal 3 / 192.168.2.30; `10.5.0.63` = NVR-kanaal 2 / 192.168.2.11 — extra IP < 100 omdat Proxmox-CT's vanaf 100 beginnen), ONVIF 80 / RTSP 8554 / snapshot 8580; inline config `onvif.yaml` (target = NVR `192.168.2.251`); géén credentials in de config (die vul je in Protect bij adoptie) |
 
 ## Diensten die níét op 80 kunnen (binnen één stack)
@@ -114,6 +115,16 @@ bindt zelf het LXC-IP op 80/8554/8580).
   `PAPERLESS_ALLOWED_HOSTS` (default in de compose: domein + LXC-IP + localhost). Upgraden: `PAPERLESS_IMAGE`
   ophogen + redeploy — **v3 kan alleen vanaf 2.20.15** (draai eerst een 2.20.15-image op een oudere DB; de
   zoekindex Whoosh→Tantivy wordt bij de eerste v3-start herbouwd). Login via Pocket ID (eigen OIDC, geen gate).
+- **ntfy**: externe (niet-s4ndyp) app. Publiceren is één HTTP-call (`curl -d "tekst" <server>/<topic>`);
+  dit is de notificatiebus voor cronjobs (nachtscan), Dockhand-deploys en Home Assistant, in plaats van
+  Discord. **Alles staat dicht** (`auth-default-access: deny-all`): maak eerst een admin aan via de CLI
+  (`sh -c 'NTFY_PASSWORD=… ntfy user add --role=admin <naam>'`), geef een schrijf-only gebruiker toegang
+  tot de bus (`ntfy access <naam> "homelab*" write-only`) en gebruik voor scripts een access-token
+  (`ntfy token add --label homelab-scripts <naam>`). Wachtwoorden en tokens staan in de Infisical-map
+  `/ntfy` en in Vaultwarden (collectie Home-automation). De mobiele app logt in met de admin-gebruiker en
+  abonneert op het topic. **Géén Pocket-ID-gate** op de route: telefonie en curl kunnen geen SSO-flow
+  doorlopen — de eigen users/ACL zijn het hek. Op de LXC-IP is de UI ook zonder domein bereikbaar
+  (handig voor de eerste setup).
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
 - **netronome**: externe (niet-s4ndyp) app. Container-intern 7575, host 80. SQLite-variant
   (upstream levert ook een postgres-compose; niet nodig voor één LXC). Data in het named volume
