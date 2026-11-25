@@ -77,6 +77,9 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # VictoriaLogs-datasource-plugin (officieel, van VictoriaMetrics): wordt bij de
+      # eerste start geïnstalleerd en blijft daarna in het grafana_data-volume staan.
+      GF_INSTALL_PLUGINS: victoriametrics-logs-datasource
       # --- Pocket ID (OIDC) --- native SSO; de lokale admin-login blijft als break-glass
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
       GF_AUTH_GENERIC_OAUTH_NAME: Pocket ID
@@ -199,6 +202,17 @@ configs:
           jsonData:
             httpMethod: POST
             timeInterval: 30s
+        # VictoriaLogs (centrale logstore, LXC 182): logs naast de metrics in hetzelfde
+        # Grafana. De plugin victoriametrics-logs-datasource wordt bij het starten
+        # geïnstalleerd (GF_INSTALL_PLUGINS, hierboven) en blijft in het
+        # grafana_data-volume staan. De UI van de logstore zelf is https://logs.xdio.nl.
+        - name: VictoriaLogs
+          type: victoriametrics-logs-datasource
+          access: proxy
+          url: http://10.5.0.182
+          uid: victorialogs
+          jsonData:
+            httpMethod: POST
 
   # Grafana-dashboard-provider: leest JSON uit /etc/grafana/dashboards (het
   # config-bestand hieronder). Een nieuw dashboard toevoegen = nieuw config-blok
