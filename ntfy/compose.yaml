@@ -3,7 +3,7 @@
 # - Browser/UI: http://<lxc-ip>/  (host-poort 80 → container 80; het image EXPOSE't 80).
 # - Gebruik: publiceren kan met één curl — `curl -d "backup klaar" http://<lxc-ip>/homelab`.
 #   Met auth aan (zie hieronder) gaat dat met een access-token:
-#   `curl -H "Authorization: Bearer <token>" -d "…" https://ntfy.xdio.nl/homelab`.
+#   `curl -H "Authorization: Bearer ***" -d "…" https://ntfy.xdio.nl/homelab`.
 # - Config staat INLINE (configs.content): de compose draait op de Dockhand-host en relatieve
 #   bestands-binds komen op de app-LXC leeg aan. Let op de valkuil: een inhoudswijziging van een
 #   inline config herstart de container NIET — bij een config-wijziging de container geforceerd
@@ -75,6 +75,15 @@ configs:
       enable-login: true
       keepalive-interval: "45s"
       manager-interval: "1m"
+      # web push (RFC8030): desktopmeldingen in de browser, ook met de tab dicht.
+      # Vereist HTTPS (Zoraxy doet de TLS-terminatie) en de web-app op dezelfde server.
+      # De VAPID-sleutels staan NIET in deze publieke repo: ze komen uit de stack-.env
+      # (Dockhand `PUT /api/stacks/ntfy/env/raw`) en uit Infisical-map /ntfy.
+      # Chrome/Firefox op desktop leveren web push alleen zolang de browser draait; de tab mag dicht.
+      web-push-file: "/var/lib/ntfy/webpush.db"
+      web-push-public-key: "${NTFY_WEB_PUSH_PUBLIC_KEY:?web-push publieke sleutel ontbreekt in de stack-.env}"
+      web-push-private-key: "${NTFY_WEB_PUSH_PRIVATE_KEY:?web-push prive-sleutel ontbreekt in de stack-.env}"
+      web-push-email-address: "sandyp@xdio.nl"
 
 volumes:
   ntfy_cache:
