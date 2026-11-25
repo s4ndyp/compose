@@ -1,0 +1,36 @@
+# VictoriaLogs (extern; centrale logstore met LogsQL als querytaal en de vmui-webUI).
+#
+# - Bewaartermijn 30 dagen (`-retentionPeriod`), gelijk aan de AdGuard-querylog.
+#   `-retention.maxDiskSpaceUsageBytes` is een harde rem op het datavolume: ook als de
+#   aanvoer onverwacht groot wordt loopt de schijf van de LXC niet vol.
+# - Eén 80-mapping voor de browser-UI; de ingest- en query-endpoints hangen onder dezelfde
+#   poort: /insert/loki/api/v1/push, /insert/jsonline, /insert/elasticsearch/_bulk,
+#   /insert/opentelemetry/v1/logs en /select/logsql/query.
+# - Géén Pocket-ID-gate op deze route: de log-shippers op de hosts (Alloy/vector/vlagent)
+#   schrijven zonder browser-login naar de ingest-API — die clients krijgen het IP:poort.
+#   De UI is LAN-only via AdGuard-rewrite + Zoraxy-route (logs.xdio.nl).
+# - Upgraden: de image-tag hieronder ophogen naar de nieuwste release
+#   (github.com/VictoriaMetrics/VictoriaLogs/releases) en redeployen; de data blijft in
+#   het named volume victorialogs_data staan.
+name: victorialogs
+
+services:
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.54.0
+    container_name: victorialogs
+    restart: unless-stopped
+    ports:
+      # browser-UI (vmui) + query-API + ingest-endpoints op host-poort 80
+      - "${VLOGS_PORT:-80}:9428"
+    command:
+      - "-storageDataPath=/vlogs-data"
+      - "-retentionPeriod=30d"
+      - "-retention.maxDiskSpaceUsageBytes=15GiB"
+      - "-loggerLevel=INFO"
+    volumes:
+      - victorialogs_data:/vlogs-data
+    # geen healthcheck: het image is scratch-based en heeft geen shell of wget in huis,
+    # dus een CMD-healthcheck is hier onmogelijk; Dockhand-status + uptime-monitor bewaken hem.
+
+volumes:
+  victorialogs_data:
