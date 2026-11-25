@@ -1,0 +1,104 @@
+# outline — Outline (wiki / knowledge base, Notion-achtige UI) met Pocket ID-SSO
+#
+# Externe app (geen eigen repo): deze stack staat in s4ndyp/compose. Draait in een
+# eigen LXC onder Dockhand; de browser-route is host-poort 80 (homelab-conventie).
+#
+# Services: outline (app, intern 3000) + postgres 18 (DB) + redis 8 (cache/queue).
+#   Postgres en Redis publiceren GEEN host-poort — alleen het container-netwerk.
+#   Bestandsopslag is LOKAAL (FILE_STORAGE=local) in het volume outline_storage,
+#   dus géén S3/MinIO nodig voor deze single-node opzet.
+#
+# Vereiste secrets (uit Infisical-map /outline via DOCKHAND_SECRET_SELECTOR):
+#   SECRET_KEY, UTILS_SECRET           (openssl rand -hex 32)
+#   POSTGRES_PASSWORD                  (openssl rand -hex 24)
+#   OIDC_CLIENT_ID, OIDC_CLIENT_SECRET (Pocket-ID-client 'Outline')
+# URL staat vast op https://wiki.xdio.nl (TLS termineert op Zoraxy).
+# Upgraden: het image-tag hieronder ophogen → redeploy (migraties lopen bij de start).
+#
+# SSO is NATIEF (geen Zoraxy-gate): Pocket ID heeft een officiële Outline-clientpagina.
+#   De LXC moet pocket.xdio.nl server-side kunnen resolven (token/userinfo-calls).
+#   De eerste gebruiker die via Pocket ID inlogt wordt automatisch beheerder.
+name: outline
+
+services:
+  outline:
+    image: outlinewiki/outline:1.13.0
+    container_name: outline
+    restart: unless-stopped
+    ports:
+      # browser-UI + API: host 80, intern luistert Outline op 3000
+      - "${OUTLINE_PORT:-80}:3000"
+    environment:
+      NODE_ENV: production
+      URL: https://wiki.xdio.nl
+      PORT: "3000"
+      # TLS termineert op Zoraxy; daarom geen eigen https-redirect (voorkomt een
+      # redirect-lus en houdt de healthcheck op http werkend).
+      FORCE_HTTPS: "false"
+      TZ: Europe/Amsterdam
+      SECRET_KEY: ${SECRET_KEY:?Zet SECRET_KEY in Infisical map /outline}
+      UTILS_SECRET: ${UTILS_SECRET:?Zet UTILS_SECRET in Infisical map /outline}
+      DATABASE_URL: postgres://outline:${POSTGRES_PASSWORD:?Zet POSTGRES_PASSWORD in Infisical map /outline}@postgres:5432/outline
+      PGSSLMODE: disable
+      REDIS_URL: redis://redis:6379
+      FILE_STORAGE: local
+      FILE_STORAGE_LOCAL_ROOT_DIR: /var/lib/outline/data
+      # --- SSO via Pocket ID (native OIDC) ---
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:?Zet OIDC_CLIENT_ID in Infisical map /outline}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?Zet OIDC_CLIENT_SECRET in Infisical map /outline}
+      OIDC_AUTH_URI: https://pocket.xdio.nl/authorize
+      OIDC_TOKEN_URI: https://pocket.xdio.nl/api/oidc/token
+      OIDC_USERINFO_URI: https://pocket.xdio.nl/api/oidc/userinfo
+      OIDC_LOGOUT_URI: https://pocket.xdio.nl/api/oidc/end-session
+      OIDC_DISPLAY_NAME: Pocket ID
+      OIDC_USERNAME_CLAIM: preferred_username
+      OIDC_SCOPES: openid profile email
+    volumes:
+      - outline_storage:/var/lib/outline/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # /_health controleert de Postgres- én Redis-verbinding en geeft "OK".
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/_health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: postgres:18
+    container_name: outline-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: outline
+      POSTGRES_USER: outline
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Zet POSTGRES_PASSWORD in Infisical map /outline}
+    volumes:
+      # Het postgres:18-image bewaart zijn data onder /var/lib/postgresql (niet .../data).
+      - outline_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U outline -d outline"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8
+    container_name: outline-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - outline_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  outline_storage:
+  outline_pgdata:
+  outline_redis:
