@@ -4,10 +4,15 @@
 # Externe app (geen eigen repo): deze stack staat in s4ndyp/compose. Draait in een
 # eigen LXC onder Dockhand; de browser-route is host-poort 80 (homelab-conventie).
 #
-# Poorten: 80 → 9999 (web-UI op /, REST-API op /api/, MCP op /mcp als die aanstaat).
-# Volumes: gopeed_storage = taakdatabase (BoltDB) + extensies, gopeed_downloads = de
-#   gedownloade bestanden. Beide named volumes: /app/Downloads als bind-mount zou op de
-#   Dockhand-host wijzen en niet op de app-LXC.
+# Poorten: 80 → 9999 (web-UI op /, REST-API op /api/, MCP op /mcp).
+# Volumes: gopeed_storage = taakdatabase (BoltDB) + extensies (named volume; staat in de
+#   rootfs van CT179 en gaat mee in de vzdump-backup). De downloads gaan NIET naar een
+#   volume maar naar de SMB-share **Downloads** op de UNAS: die is op de PVE-node
+#   Proxnux2 gemount (/etc/fstab → //10.1.1.1/Downloads op /mnt/unaz-downloads,
+#   credentials in /root/.smb-downloads.cred, uid/gid 100000 voor deze unprivileged
+#   container) en als `mp0: /mnt/unaz-downloads,mp=/mnt/gopeed` in de LXC-config gebonden.
+#   De compose bindt dat door naar /app/Downloads — een ABSOLUUT host-pad, dus géén
+#   relatieve ./bind (die lost op de Dockhand-host op en wordt daar een lege map).
 #
 # Auth: géén app-wachtwoord. De UI hangt achter de **Pocket ID-gate** op Zoraxy en de
 #   host-poort 80 staat op de LXC alleen open voor Zoraxy/Hermes/Dockhand (DOCKER-USER-
@@ -38,9 +43,13 @@ services:
       # Downloads alleen binnen de mount toestaan; anders kan een taak overal in de
       # container schrijven.
       GOPEED_WHITEDOWNLOADDIRS: /app/Downloads
+      # MCP-endpoint (/mcp) aan: AI-agenten kunnen taken aanmaken/beheren. Zit achter
+      # dezelfde Pocket ID-gate en firewall-allowlist als de REST-API.
+      GOPEED_MCPENABLE: "true"
     volumes:
       - gopeed_storage:/app/storage
-      - gopeed_downloads:/app/Downloads
+      # SMB-share "Downloads" op de UNAS (via de LXC-mount /mnt/gopeed)
+      - /mnt/gopeed:/app/Downloads
     healthcheck:
       # Geen eigen health-endpoint; de statische webclient op / antwoordt altijd 200
       # (ook met web-auth aan, want de loginpagina zelf is publiek).
@@ -52,4 +61,3 @@ services:
 
 volumes:
   gopeed_storage:
-  gopeed_downloads:
