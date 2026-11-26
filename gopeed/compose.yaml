@@ -41,8 +41,11 @@ services:
       PGID: "0"
       UMASK: "022"
       # Downloads alleen binnen de mount toestaan; anders kan een taak overal in de
-      # container schrijven.
-      GOPEED_WHITEDOWNLOADDIRS: /app/Downloads
+      # container schrijven. Let op: Gopeed zet een taak in een SUBMAP als de
+      # resourcenaam afwijkt van de bestandsnaam (bv. de videotitel), en de check is
+      # filepath.Match (glob) — vandaar ook de /*-variant, anders faalt zo'n taak met
+      # "download directory is not in white list".
+      GOPEED_WHITEDOWNLOADDIRS: /app/Downloads,/app/Downloads/*
       # MCP-endpoint (/mcp) aan: AI-agenten kunnen taken aanmaken/beheren. Zit achter
       # dezelfde Pocket ID-gate en firewall-allowlist als de REST-API.
       GOPEED_MCPENABLE: "true"
