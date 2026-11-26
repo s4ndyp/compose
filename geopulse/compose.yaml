@@ -1,0 +1,110 @@
+name: geopulse
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  geopulse-backend:
+    image: tess1o/geopulse-backend:${GEOPULSE_VERSION}-native
+    container_name: geopulse-backend
+    init: true
+    mem_limit: 1024m
+    mem_reservation: 256m
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      GEOPULSE_POSTGRES_URL: jdbc:postgresql://geopulse-postgres:5432/geopulse
+      GEOPULSE_POSTGRES_HOST: geopulse-postgres
+      GEOPULSE_POSTGRES_PORT: "5432"
+      GEOPULSE_POSTGRES_DB: geopulse
+      GEOPULSE_POSTGRES_USERNAME: geopulse
+      GEOPULSE_POSTGRES_PASSWORD: ${GEOPULSE_POSTGRES_PASSWORD:?secret uit Infisical /geopulse}
+      GEOPULSE_PUBLIC_BASE_URL: ${GEOPULSE_PUBLIC_BASE_URL:-https://geopulse.xdio.nl}
+      GEOPULSE_UI_URL: ${GEOPULSE_PUBLIC_BASE_URL:-https://geopulse.xdio.nl}
+      GEOPULSE_CORS_ENABLED: "false"
+      GEOPULSE_COOKIE_DOMAIN: ""
+      GEOPULSE_AUTH_SECURE_COOKIES: "false"
+      GEOPULSE_ADMIN_EMAIL: ${GEOPULSE_ADMIN_EMAIL:-sandy.pijpstra@gmail.com}
+      GEOPULSE_LOG_JSON_ENABLED: "true"
+      GEOPULSE_DATABASE_TRANSACTION_TIMEOUT_MINUTES: "60"
+      GEOPULSE_OIDC_ENABLED: "true"
+      GEOPULSE_OIDC_CALLBACK_BASE_URL: ${GEOPULSE_PUBLIC_BASE_URL:-https://geopulse.xdio.nl}
+      GEOPULSE_OIDC_PROVIDER_GENERIC_ENABLED: "true"
+      GEOPULSE_OIDC_PROVIDER_GENERIC_NAME: "Pocket ID"
+      GEOPULSE_OIDC_PROVIDER_GENERIC_CLIENT_ID: ${GEOPULSE_OIDC_CLIENT_ID:?secret uit Infisical /geopulse}
+      GEOPULSE_OIDC_PROVIDER_GENERIC_CLIENT_SECRET: ${GEOPULSE_OIDC_CLIENT_SECRET:?secret uit Infisical /geopulse}
+      GEOPULSE_OIDC_PROVIDER_GENERIC_DISCOVERY_URL: https://pocket.xdio.nl/.well-known/openid-configuration
+      GEOPULSE_OIDC_PROVIDER_GENERIC_ICON: pi pi-id-card
+      GEOPULSE_AUTH_LOGIN_ENABLED: "true"
+      GEOPULSE_AUTH_PASSWORD_LOGIN_ENABLED: "true"
+      GEOPULSE_AUTH_OIDC_LOGIN_ENABLED: "true"
+      GEOPULSE_AUTH_ADMIN_LOGIN_BYPASS_ENABLED: "true"
+      GEOPULSE_WEATHER_ENABLED: "true"
+      GEOPULSE_WEATHER_BACKFILL_ENABLED: "false"
+    volumes:
+      - /opt/geopulse/docker/keys:/app/keys
+      - /opt/geopulse/docker/import-drop:/data/geopulse-import
+      - /opt/geopulse/docker/backups:/data/geopulse-backups
+    depends_on:
+      geopulse-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/system/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 20s
+
+  geopulse-ui:
+    image: tess1o/geopulse-ui:${GEOPULSE_VERSION}
+    container_name: geopulse-ui
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      GEOPULSE_BACKEND_URL: http://geopulse-backend:8080
+      GEOPULSE_UI_URL: ${GEOPULSE_PUBLIC_BASE_URL:-https://geopulse.xdio.nl}
+      CLIENT_MAX_BODY_SIZE: 1000M
+      OSM_RESOLVER: 127.0.0.11 8.8.8.8
+    ports:
+      - "80:80"
+    depends_on:
+      geopulse-backend:
+        condition: service_healthy
+
+  geopulse-postgres:
+    image: postgis/postgis:18-3.6
+    container_name: geopulse-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    shm_size: 256mb
+    environment:
+      POSTGRES_USER: geopulse
+      POSTGRES_PASSWORD: ${GEOPULSE_POSTGRES_PASSWORD:?secret uit Infisical /geopulse}
+      POSTGRES_DB: geopulse
+    volumes:
+      - geopulse-postgres-data:/var/lib/postgresql
+    command: >
+      postgres
+      -c timezone=UTC
+      -c shared_buffers=256MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=64MB
+      -c effective_cache_size=1GB
+      -c max_wal_size=512MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=100
+      -c autovacuum_naptime=60s
+      -c autovacuum_vacuum_scale_factor=0.2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geopulse -d geopulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  geopulse-postgres-data:
