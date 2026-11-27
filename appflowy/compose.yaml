@@ -48,7 +48,7 @@ services:
 
   nginx:
     image: nginx:1.31.8-alpine
-    restart: on-failure
+    restart: unless-stopped
     # De config staat in een volume, niet op /etc/nginx/nginx.conf (daar zit een
     # bestand in het image) — vandaar de expliciete -c. Entrypoint is de binary
     # zelf: het standaard-entrypoint doet `exec "$@"` en slikt een eerste argument
@@ -65,7 +65,7 @@ services:
   # Geen healthcheck: het image heeft geen curl/wget en niets wacht erop.
   minio:
     image: pgsty/silo:RELEASE.2026-11-12T00-00-00Z
-    restart: on-failure
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_BROWSER_REDIRECT_URL: ${APPFLOWY_BASE_URL:?}/minio
@@ -76,7 +76,7 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg16
-    restart: on-failure
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
@@ -94,13 +94,13 @@ services:
 
   redis:
     image: redis:8.8.4-alpine
-    restart: on-failure
+    restart: unless-stopped
 
   # Supabase-GoTrue-fork van AppFlowy: machtigt gebruikers en maakt bij de start de
   # admin-user uit GOTRUE_ADMIN_EMAIL/PASSWORD aan (en draait de migraties).
   gotrue:
     image: appflowyinc/gotrue:0.20.6
-    restart: on-failure
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -165,7 +165,7 @@ services:
   # De API + websocket-server. Draait bij de start zelf de sqlx-migraties op Postgres.
   appflowy_cloud:
     image: appflowyinc/appflowy_cloud:0.21.9
-    restart: on-failure
+    restart: unless-stopped
     environment:
       RUST_LOG: ${RUST_LOG:-info}
       APPFLOWY_ENVIRONMENT: production
@@ -224,7 +224,7 @@ services:
   # Beheerconsole van de instance (users aanmaken, workspaces bekijken).
   admin_frontend:
     image: appflowyinc/admin_frontend:0.20.4
-    restart: on-failure
+    restart: unless-stopped
     environment:
       APPFLOWY_GOTRUE_BASE_URL: http://gotrue:9999
       APPFLOWY_BASE_URL: http://appflowy_cloud:8000
@@ -237,7 +237,7 @@ services:
   # Achtergrondtaken: imports, exports, bestandsverwerking.
   appflowy_worker:
     image: appflowyinc/appflowy_worker:0.21.9
-    restart: on-failure
+    restart: unless-stopped
     environment:
       RUST_LOG: ${RUST_LOG:-info}
       APPFLOWY_ENVIRONMENT: production
@@ -269,7 +269,7 @@ services:
   # (de embedding-indexer staat uit).
   appflowy_search:
     image: appflowyinc/appflowy_search:0.21.9
-    restart: on-failure
+    restart: unless-stopped
     environment:
       RUST_LOG: ${RUST_LOG:-info}
       APPFLOWY_SEARCH_HOST: "[::]"
@@ -319,7 +319,7 @@ services:
   # interne netwerk wijzen.
   appflowy_web:
     image: appflowyinc/appflowy_web:0.20.15
-    restart: on-failure
+    restart: unless-stopped
     environment:
       APPFLOWY_BASE_URL: ${APPFLOWY_BASE_URL:?}
       APPFLOWY_GOTRUE_BASE_URL: ${APPFLOWY_BASE_URL:?}/gotrue
