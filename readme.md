@@ -8,7 +8,7 @@ altijd **host-poort 80**; de container-interne poort blijft zoals de app zelf lu
 De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 
 > **Deze repo bevat sinds 18-11-2026 alleen nog externe/third-party stacks** (Forgejo, Infisical,
-> Homarr, Pocket ID, RustDesk, Beszel, Netronome, Dashbrr, AppFlowy, Uptime-Kotlin,
+> Homarr, Pocket ID, RustDesk, Beszel, Dashbrr, AppFlowy, Uptime-Kotlin,
 > God's Eye View, Paperless-ngx, Outline, rtsp2unifi-protect, ntfy en de Forgejo-runner).
 >
 > De **eigen apps** (`fileshare`, `listvault`, `tinynote`, `wallpaparr`, `financepro`, `gpstag`, `iconator`,
@@ -27,7 +27,6 @@ De host-poort blijft via de env-var overschrijfbaar mocht het ooit nodig zijn.
 | gopeed | Gopeed (extern; snelle download manager — HTTP/HTTPS/BitTorrent/Metalink, web-UI + REST-API + MCP) | 80 → 9999 | image `liwei2633/gopeed:v2.0.0` (gepind), volume `gopeed_storage` (taak-db BoltDB); **downloads naar de SMB-share `Downloads` op de UNAS** (node-Proxnux2-mount `/mnt/unaz-downloads` → LXC `mp0` `/mnt/gopeed` → `/app/Downloads`, uid/gid 100000); **Pocket-ID-gate** + `DOCKER-USER`-allowlist op poort 80; MCP aan (`GOPEED_MCPENABLE`) |
 | gods-eye-view | God's Eye View (extern; Vite-dev-server = client + API-proxies) | 80 → 4173 | build vanaf GitHub, env `GEV_ALLOWED_HOSTS`; geen volumes (caches zijn regeneratief) |
 | infisical | Infisical secrets-manager (backend + Postgres + Redis) | 80 → 8080 | image `v0.167.6` (gepind), **verplichte `.env`** (zie `.env.example`); db/redis niet gepubliceerd |
-| netronome | Netronome (extern; netwerk-snelheidstest + monitoring, Go+React) | 80 → 7575 | image `v0.16.0` (gepind), volume, `NET_RAW` (ping/mtr), stack-var `NETRONOME_SPEEDTEST_TIMEOUT` (default 120) |
 | outline | Outline (extern; wiki/knowledge base met Notion-achtige UI — app + Postgres + Redis, lokale bestandsopslag) | 80 → 3000; db/redis intern | image `outlinewiki/outline:1.13.0` (gepind), volumes `outline_storage`/`outline_pgdata`/`outline_redis`, **native Pocket ID-OIDC** (geen gate), verplichte stackvariabelen uit Infisical-map `/outline` (SECRET_KEY, UTILS_SECRET, POSTGRES_PASSWORD, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET) |
 | paperless | Paperless-ngx (extern; documentenbeheer/DMS — web + consumer + scheduler, met Gotenberg + Tika) | 80 → 8000 | images `3.5.1` (gepind, `PAPERLESS_IMAGE`) + `postgres:18`, `redis:8`, `gotenberg 8.25`, `apache/tika:latest`; volumes `pgdata`+`redisdata`, **bind-mounts** naar `/opt/paperless/{data,media,consume,export}` (overgenomen van de native installatie, uid 1000); verplichte stackvariabelen uit Infisical `/paperless`; v3 handhaaft `ALLOWED_HOSTS` |
 | pocket-id | Pocket ID (extern; OIDC met passkeys, Go+SQLite) | 80 → 1411 | image `pocketid/pocket-id:v2`, volume `pocketid_data`, stack-var `APP_URL` (MOET een domein zijn — passkeys/RPID) + Infisical-secret `ENCRYPTION_KEY` |
@@ -128,33 +127,6 @@ bindt zelf het LXC-IP op 80/8554/8580).
   doorlopen — de eigen users/ACL zijn het hek. Op de LXC-IP is de UI ook zonder domein bereikbaar
   (handig voor de eerste setup).
 - PocketBase-apps: eerste login via `http://<lxc-ip>/_/` admin-aanmaken.
-- **netronome**: externe (niet-s4ndyp) app. Container-intern 7575, host 80. SQLite-variant
-  (upstream levert ook een postgres-compose; niet nodig voor één LXC). Data in het named volume
-  `netronome_data` (/data: db, gegenereerde config.toml met session secret, logs). `NET_RAW` is
-  vereist voor ping/mtr/traceroute (packet-loss-monitor). Eigen gebruikerslogin: registreer de
-  eerste admin via `POST /api/auth/register` (`{"username":…,"password":…}`) vóór de app publiek
-  staat — daarna is registratie gesloten. Zonder login is alleen 127.0.0.1 toegestaan (whitelist).
-  OIDC kan later via `NETRONOME__OIDC_ISSUER`/`_CLIENT_ID`/`_CLIENT_SECRET`/`_REDIRECT_URL`.
-  **Gebruik v0.16.0 of nieuwer** — daar zitten twee fixes in die deze deploy nodig had:
-  de serverselectie-lijst (v0.6.0 pingt elke server met één gedeeld deadline van 4 s en
-  filtert daarna alles weg → lege lijst; v0.16.0 houdt een duurzame catalogus bij zonder
-  elke server te pingen) en de uploadmeting (de Go-bibliotheek kan een POST-redirect niet
-  volgen, en bijna alle Ookla-servers antwoorden met 307 naar https → upload werd ~3 Mbps;
-  v0.16.0 resolve't die redirect vooraf met een HEAD). Test na een upgrade met een server
-  die redirect (bv. KPN Amstelveen 61186): upload hoort dan in de honderden Mbps te zijn.
-  Nieuwste tag bepalen met `gh release list -R autobrr/netronome` (de registry-tags-API
-  pagineert en verbergt de nieuwste tags).
-  Losse resultaten wissen kan NIET via UI of API — de enige opschoonroute is op leeftijd
-  (`POST /api/history/purge` met `{"olderThanDays":N}`; 0 = alles). Selectief wissen doe je
-  rechtstreeks: container stoppen, `sqlite3 /data/.config/netronome/netronome.db
-  "delete from speed_tests where id in (…)"` via een wegwerpcontainer met hetzelfde volume
-  (het image heeft sqlite3 aan boord; `cp -a` de db eerst als backup), container weer starten.
-  De serverlijst toont per bron max. 10 servers (`nearestServerLimit`) en de bron kies je in de
-  UI (tandwiel → Speedtest.net): Local = 10 naaste bij de door Ookla bepaalde locatie (KPN
-  Amstelveen valt daar net buiten: ~47 km, #11), Coordinates = 10 naaste bij eigen lat/lon
-  (52.3114 / 4.8701 zet KPN bovenaan), Global = alles wat in de catalogus is opgehaald.
-  De bron-keuze staat in browser-localStorage, dus niet server-side te zetten; een expliciete
-  server-id (61186) werkt ook als die niet in de zichtbare lijst staat.
 - **beszel**: externe (niet-s4ndyp) app. De hub is een PocketBase-binary met één datamap
   (`beszel_data`) — géén named volume maar een **bind-mount naar `/opt/beszel/beszel_data`**, de
   plek van de oude native installatie (systemd-unit `beszel-hub` is gestopt/gedisabled maar nog
