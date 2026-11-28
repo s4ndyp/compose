@@ -78,6 +78,11 @@ services:
       # HA (ha.xdio.nl) mag Grafana-panelen in een iframe tonen. Zonder dit stuurt
       # Grafana `X-Frame-Options: deny` en blijft een iframe-kaart leeg.
       GF_SECURITY_ALLOW_EMBEDDING: "true"
+      # HA draait op http://10.1.2.2:8123 — een ander "site" dan grafana.xdio.nl,
+      # dus de iframe is cross-site. Zonder SameSite=None stuurt de browser de
+      # grafana_session-cookie niet mee en toont het paneel de loginpagina.
+      GF_SECURITY_COOKIE_SAMESITE: "none"
+      GF_SECURITY_COOKIE_SECURE: "true"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       # VictoriaLogs-datasource-plugin (officieel, van VictoriaMetrics): wordt bij de
