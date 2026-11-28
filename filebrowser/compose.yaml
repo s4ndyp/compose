@@ -80,6 +80,9 @@ configs:
         # juiste share-URL's achter de Zoraxy-proxy
         externalUrl: "https://share.sandyp.nl"
         trustProxyHeaders: true
+        # alleen Zoraxy (10.10.2.250) mag forwarding-headers zetten; zonder deze lijst
+        # negeert FileBrowser X-Forwarded-For en ziet elke client als de proxy.
+        trustedProxies: ["10.10.2.250"]
       server:
         # cache/database staan in het volume; cacheDir binnen dat volume
         cacheDir: "/home/filebrowser/data/tmp"
@@ -91,10 +94,10 @@ configs:
         logging:
           - levels: "info|warning|error"
       auth:
-        adminUsername: "admin"
         methods:
           password:
             enabled: true
+            adminUsername: "admin"
             signup: false
             minLength: 12
 
