@@ -75,6 +75,9 @@ services:
       GF_SERVER_ROOT_URL: https://grafana.xdio.nl
       GF_SERVER_DOMAIN: grafana.xdio.nl
       GF_USERS_ALLOW_SIGN_UP: "false"
+      # HA (ha.xdio.nl) mag Grafana-panelen in een iframe tonen. Zonder dit stuurt
+      # Grafana `X-Frame-Options: deny` en blijft een iframe-kaart leeg.
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       # VictoriaLogs-datasource-plugin (officieel, van VictoriaMetrics): wordt bij de
