@@ -1,0 +1,139 @@
+name: filebrowser
+
+# filebrowser — FileBrowser Quantum (actieve fork van FileBrowser): web-UI met
+#   upload/download, deel-links (share links) met wachtwoord/vervaldatum,
+#   upload-only links en volledige zoekindex.
+#
+# Externe app (geen eigen repo): deze stack staat in s4ndyp/compose. Draait in een eigen
+# LXC onder Dockhand; de browser-route is host-poort 80 (homelab-conventie).
+#
+# PLAATS IN HET NETWERK: LXC 164 staat in de DMZ (VLAN 10, 10.10.2.164) en is van buiten
+#   bereikbaar via https://share.sandyp.nl (TLS termineert op Zoraxy CT121, 10.10.2.250).
+#   De LXC is PRIVILEGED omdat de UNAS-share (SMB) IN de gast gemount wordt
+#   (/etc/fstab -> //10.1.1.1/Datavault op /mnt/unas/datavault). Zo verhuist de CT
+#   zonder host-bind-mounts mee naar elke node.
+#
+# Opslag: UNAS-share Datavault -> /srv/datavault in de container. Database + cache in het
+#   named volume filebrowser_data (rootfs, gaat mee in de vzdump-backup).
+#
+# Auth: app-eigen admin-login. GEEN Pocket ID-gate: deel-links moeten anoniem werken.
+#   Wachtwoord/JWT/TOTP-secrets komen uit de Infisical-map /filebrowser via
+#   DOCKHAND_SECRET_SELECTOR (stack-env).
+#
+# Logging: logshipper (Vector) -> VictoriaLogs. Metrics: node_exporter op de LXC zelf
+#   (FileBrowser heeft geen eigen /metrics-endpoint).
+#
+# Upgraden: image-tag hieronder ophogen -> redeploy. De SQLite-database migreert zelf.
+
+services:
+  filebrowser:
+    image: ghcr.io/gtsteffaniak/filebrowser:2.1.0-stable
+    container_name: filebrowser
+    restart: unless-stopped
+    ports:
+      # web-UI + API: host 80, intern luistert FileBrowser op 80
+      - "${APP_PORT:-80}:80"
+    environment:
+      TZ: Europe/Amsterdam
+      FILEBROWSER_ADMIN_PASSWORD: ${FILEBROWSER_ADMIN_PASSWORD:?Zet FILEBROWSER_ADMIN_PASSWORD in Infisical map /filebrowser}
+      FILEBROWSER_JWT_TOKEN_SECRET: ${FILEBROWSER_JWT_TOKEN_SECRET:?Zet FILEBROWSER_JWT_TOKEN_SECRET in Infisical map /filebrowser}
+      FILEBROWSER_TOTP_SECRET: ${FILEBROWSER_TOTP_SECRET:?Zet FILEBROWSER_TOTP_SECRET in Infisical map /filebrowser}
+    volumes:
+      # database (SQLite), cache en tmp: lokaal op de CT-rootfs
+      - filebrowser_data:/home/filebrowser/data
+      # UNAS-share Datavault, in de gast gemount via /etc/fstab (CIFS)
+      - /mnt/unas/datavault:/srv/datavault
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    configs:
+      - source: filebrowser_config
+        target: /home/filebrowser/data/config.yaml
+
+  logshipper:
+    image: timberio/vector:0.62.0-alpine
+    container_name: logshipper
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - logshipper_data:/var/lib/vector
+    configs:
+      - source: vector_config
+        target: /etc/vector/vector.yaml
+
+volumes:
+  filebrowser_data:
+  logshipper_data:
+
+configs:
+  filebrowser_config:
+    content: |
+      # FileBrowser Quantum — config. Wijzigingen: compose aanpassen -> redeploy.
+      # (Inline config wordt bij het AANMAKEN in de container gezet: na een wijziging
+      #  container verwijderen + opnieuw deployen, niet alleen redeployen.)
+      http:
+        port: 80
+        baseURL: "/"
+        # juiste share-URL's achter de Zoraxy-proxy
+        externalUrl: "https://share.sandyp.nl"
+        trustProxyHeaders: true
+      server:
+        # cache/database staan in het volume; cacheDir binnen dat volume
+        cacheDir: "/home/filebrowser/data/tmp"
+        sources:
+          - path: "/srv/datavault"
+            name: "Datavault"
+            config:
+              defaultEnabled: true
+        logging:
+          - levels: "info|warning|error"
+      auth:
+        adminUsername: "admin"
+        methods:
+          password:
+            enabled: true
+            signup: false
+            minLength: 12
+
+  vector_config:
+    content: |
+      data_dir: /var/lib/vector
+      sources:
+        docker:
+          type: docker_logs
+          docker_host: unix:///var/run/docker.sock
+      transforms:
+        normalize:
+          type: remap
+          inputs: [docker]
+          source: |
+            .host = "filebrowser"
+            .app = .label."com.docker.compose.project"
+            if is_null(.app) { .app = .container_name }
+            if is_null(.message) { .message = "" }
+            .msg = to_string(.message) ?? ""
+      sinks:
+        vlogs:
+          type: elasticsearch
+          inputs: [normalize]
+          endpoints: ["http://10.5.0.182/insert/elasticsearch/"]
+          mode: bulk
+          api_version: v8
+          compression: gzip
+          healthcheck:
+            enabled: false
+          buffer:
+            type: disk
+            max_size: 314572800
+            when_full: drop_newest
+          batch:
+            max_bytes: 1048576
+            timeout_secs: 5
+          request:
+            headers:
+              VL-Stream-Fields: "host,app"
+              VL-Time-Field: "timestamp"
+              VL-Msg-Field: "message,msg,_msg"
