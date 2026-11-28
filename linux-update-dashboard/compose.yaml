@@ -1,0 +1,62 @@
+# linux-update-dashboard — Linux Update Dashboard (LUD), extern
+#
+# Centraal patchbeheer voor de LXC-vloot: scant per gast (SSH) welke APT/Flatpak/Snap-
+# pakketten openstaan en rolt die updates uit met één "Upgrade All"-knop. Geen agent:
+# de app logt zelf per host in met een SSH-sleutel (credential-vault, AES-256-GCM).
+#
+# Draait in CT 183 (10.5.0.183) onder Dockhand. Browser-route: https://updates.xdio.nl
+# (Zoraxy → http://10.5.0.183:80). Auth: **native Pocket ID-OIDC** (geen gate) plus een
+# lokale wachtwoord-login als break-glass (LUDASH_PASSWORD_LOGIN_ENABLED=true).
+#
+# Upgraden: tag hieronder ophogen naar de nieuwste release
+# (`gh release list -R TheDuffman85/linux-update-dashboard`) en redeployen.
+# LUDASH_ENCRYPTION_KEY NOOIT wijzigen: daarmee zijn de opgeslagen SSH-sleutels en
+# secrets onleesbaar (staat in Infisical-map /linux-update-dashboard).
+name: linux-update-dashboard
+
+services:
+  linux-update-dashboard:
+    image: ghcr.io/theduffman85/linux-update-dashboard:2026.11.6
+    container_name: linux-update-dashboard
+    restart: unless-stopped
+    ports:
+      # Enige 80-mapping: de browser-UI (Zoraxy proxyt updates.xdio.nl hierheen).
+      - "${APP_PORT:-80}:3001"
+    environment:
+      TZ: Europe/Amsterdam
+      LUDASH_BASE_URL: https://updates.xdio.nl
+      LUDASH_TRUST_PROXY: "true"
+      LUDASH_DB_PATH: /data/dashboard.db
+      # Verplichte secrets — komen uit Infisical via de Dockhand secret-selector.
+      LUDASH_ENCRYPTION_KEY: ${LUDASH_ENCRYPTION_KEY:?LUDASH_ENCRYPTION_KEY ontbreekt (Infisical /linux-update-dashboard)}
+      # Pocket ID-OIDC (issuer = kale APP_URL van Pocket ID; LUD stuurt geen PKCE).
+      LUDASH_OIDC_ISSUER: https://pocket.xdio.nl
+      LUDASH_OIDC_CLIENT_ID: ${LUDASH_OIDC_CLIENT_ID:?LUDASH_OIDC_CLIENT_ID ontbreekt (Infisical /linux-update-dashboard)}
+      LUDASH_OIDC_CLIENT_SECRET: ${LUDASH_OIDC_CLIENT_SECRET:?LUDASH_OIDC_CLIENT_SECRET ontbreekt (Infisical /linux-update-dashboard)}
+      LUDASH_OIDC_SCOPE: openid profile email groups
+      LUDASH_OIDC_GROUPS_CLAIM: groups
+      # Rol-mapping: leden van de Pocket ID-groep 'update-admins' worden admin;
+      # overige Pocket ID-gebruikers mogen alleen kijken (read-only).
+      LUDASH_OIDC_ADMIN_GROUPS: update-admins
+      LUDASH_OIDC_UNMATCHED_ROLE: read-only
+      # Een bestaand lokaal account koppelt bij de eerste Pocket ID-login met dezelfde
+      # gebruikersnaam, zodat de break-glass-admin ook admin blijft via SSO.
+      LUDASH_OIDC_AUTO_LINK_USERNAME: "true"
+      # Break-glass: de lokale wachtwoord-login blijft naast Pocket ID werken.
+      LUDASH_PASSWORD_LOGIN_ENABLED: "true"
+    volumes:
+      - lud_data:/data
+    healthcheck:
+      # Het image heeft geen curl/wget, wel node — health via de eigen API.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  lud_data:
