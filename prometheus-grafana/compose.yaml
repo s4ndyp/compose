@@ -193,6 +193,16 @@ configs:
               labels:
                 instance: homeassistant
 
+        # FileBrowser Quantum (CT164, DMZ 10.10.2.164): node_exporter als systemd-service
+        # op :9100 (FileBrowser zelf heeft geen /metrics-endpoint). De host-firewall van
+        # de LXC staat scrapen alleen toe vanaf 10.5.0.150 — nieuwe Prometheus-IP's moeten
+        # daar eerst bij in /etc/nftables-hostfw.conf.
+        - job_name: filebrowser
+          static_configs:
+            - targets: ["10.10.2.164:9100"]
+              labels:
+                instance: filebrowser-ct164
+
   grafana_datasource:
     content: |
       apiVersion: 1
