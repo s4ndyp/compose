@@ -38,6 +38,11 @@ services:
       FILEBROWSER_ADMIN_PASSWORD: ${FILEBROWSER_ADMIN_PASSWORD:?Zet FILEBROWSER_ADMIN_PASSWORD in Infisical map /filebrowser}
       FILEBROWSER_JWT_TOKEN_SECRET: ${FILEBROWSER_JWT_TOKEN_SECRET:?Zet FILEBROWSER_JWT_TOKEN_SECRET in Infisical map /filebrowser}
       FILEBROWSER_TOTP_SECRET: ${FILEBROWSER_TOTP_SECRET:?Zet FILEBROWSER_TOTP_SECRET in Infisical map /filebrowser}
+      # Pocket-ID OIDC (SSO naast de lokale admin). De waarden komen uit de
+      # Infisical-map /filebrowser via DOCKHAND_SECRET_SELECTOR; de client-secret
+      # gaat via env (niet via de inline config) zodat hij niet in de stackmap belandt.
+      FILEBROWSER_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:?Zet OIDC_CLIENT_ID in Infisical map /filebrowser}
+      FILEBROWSER_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?Zet OIDC_CLIENT_SECRET in Infisical map /filebrowser}
     volumes:
       # database (SQLite), cache en tmp: lokaal op de CT-rootfs
       - filebrowser_data:/home/filebrowser/data
@@ -100,6 +105,20 @@ configs:
             adminUsername: "admin"
             signup: false
             minLength: 12
+          # Pocket-ID SSO naast de lokale wachtwoord-login (geen auto-redirect zolang
+          # password aan blijft). adminGroup matcht de FRIENDLY NAME van de Pocket-ID-groep.
+          oidc:
+            enabled: true
+            issuerUrl: "https://pocket.xdio.nl"
+            scopes: "openid email profile groups"
+            userIdentifier: "preferred_username"
+            adminGroup: "filebrowser-admins"
+      # Nieuwe users (incl. de eerste OIDC-login) mogen standaard deel-links maken;
+      # zonder dit is Permissions.Share false en weigert de API share-aanmaak (403).
+      userDefaults:
+        account:
+          permissions:
+            share: true
 
   vector_config:
     content: |
