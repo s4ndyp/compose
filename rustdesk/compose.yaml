@@ -33,7 +33,7 @@ services:
       TZ: Europe/Amsterdam
       RUSTDESK_API_RUSTDESK_ID_SERVER: 10.5.0.142:21116
       RUSTDESK_API_RUSTDESK_RELAY_SERVER: 10.5.0.142:21117
-      RUSTDESK_API_RUSTDESK_API_SERVER: http://10.5.0.142:21114
+      RUSTDESK_API_RUSTDESK_API_SERVER: https://rustdesk.xdio.nl
     volumes:
       - /var/lib/rustdesk-api/data:/app/data
       - /var/lib/rustdesk-api/conf:/app/conf
