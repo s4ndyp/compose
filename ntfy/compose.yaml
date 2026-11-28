@@ -52,6 +52,15 @@ services:
       timeout: 5s
       retries: 3
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-ntfy
+    restart: unless-stopped
+    network_mode: host
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?tunnel-token ontbreekt in de stack-.env}
+
 configs:
   ntfy_server_yml:
     content: |
